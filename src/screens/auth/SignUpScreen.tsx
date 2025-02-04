@@ -12,6 +12,7 @@ import {
 import { createUserDocument } from "../../api/users";
 import { useAuth } from "../../contexts/AuthContext";
 import { AuthStackParamList } from "../../types/navigation";
+import { BACKEND_URL } from '@env';
 
 type Props = NativeStackScreenProps<AuthStackParamList, "SignUp">;
 
@@ -39,40 +40,30 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
 
     try {
       const userCredential = await signUp(email, password);
-
-      // Create user document in Firestore using the API
-      await createUserDocument({
-        uid: userCredential.user.uid,
-        email,
+      
+      console.log("Tentative de connexion à:", `${BACKEND_URL}/create_user`);
+      
+      const response = await fetch(`${BACKEND_URL}/create_user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uid: userCredential.user.uid,
+          email,
+        }),
       });
+
+      console.log("Réponse status:", response.status);
+      
+      if (!response.ok) {
+        throw new Error('Failed to create user');
+      }
 
       Alert.alert("Success", "Account created successfully!");
     } catch (error) {
-      if (error instanceof FirebaseError) {
-        switch (error.code) {
-          case "auth/email-already-in-use":
-            Alert.alert("Error", "This email is already registered");
-            break;
-          case "auth/invalid-email":
-            Alert.alert("Error", "Invalid email address");
-            break;
-          case "auth/operation-not-allowed":
-            Alert.alert(
-              "Error",
-              "Email/password accounts are not enabled. Please contact support."
-            );
-            break;
-          case "auth/weak-password":
-            Alert.alert("Error", "Please choose a stronger password");
-            break;
-          default:
-            Alert.alert("Error", "Failed to create account. Please try again.");
-        }
-        console.error("Firebase Error:", error.code, error.message);
-      } else {
-        Alert.alert("Error", "An unexpected error occurred. Please try again.");
-        console.error("Unknown Error:", error);
-      }
+      console.error("Erreur complète:", error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
     }
   };
 
