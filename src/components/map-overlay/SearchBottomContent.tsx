@@ -94,18 +94,22 @@ export const SearchBottomContent: React.FC = () => {
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      {groupedReplacements.map(({ establishment, replacements }) => (
+      {groupedReplacements.map(({ establishment, replacements }, index) => (
         <View key={establishment.id} style={styles.section}>
           <Text style={styles.sectionTitle}>{establishment.name}</Text>
           {replacements.map((replacement) => (
-            <ReplacementCard
-              key={replacement.id}
-              replacement={replacement}
-              onPress={() =>
-                console.log("Pressed replacement:", replacement.id)
-              }
-            />
+            <View key={replacement.id} style={styles.cardContainer}>
+              <ReplacementCard
+                replacement={replacement}
+                onPress={() =>
+                  console.log("Pressed replacement:", replacement.id)
+                }
+              />
+            </View>
           ))}
+          {index < groupedReplacements.length - 1 && (
+            <View style={styles.separator} />
+          )}
         </View>
       ))}
     </ScrollView>
@@ -129,5 +133,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.gray[900],
     marginBottom: theme.spacing.md,
+  },
+  cardContainer: {
+    shadowColor: theme.colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  separator: {
+    height: 8,
+    backgroundColor: theme.colors.gray[100],
+    marginTop: theme.spacing.sm,
+    marginHorizontal: -theme.spacing.md,
   },
 });

@@ -19,7 +19,7 @@ const SearchBottomSheetHeader: React.FC<SearchBottomSheetHeaderProps> = ({
       <View style={styles.indicator} />
       <View style={styles.content}>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Rechercher</Text>
+          <Text style={styles.title}>Remplacements</Text>
         </View>
         <TouchableOpacity onPress={handleInfoPress} style={styles.infoButton}>
           <Ionicons

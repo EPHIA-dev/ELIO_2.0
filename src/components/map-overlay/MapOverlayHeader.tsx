@@ -21,10 +21,12 @@ interface Speciality {
 
 interface MapOverlayHeaderProps {
   isFullScreen: boolean;
+  onSearchPress: () => void;
 }
 
 export const MapOverlayHeader: React.FC<MapOverlayHeaderProps> = ({
   isFullScreen,
+  onSearchPress,
 }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -92,11 +94,12 @@ export const MapOverlayHeader: React.FC<MapOverlayHeaderProps> = ({
       ]}
     >
       <View style={styles.searchBarContainer}>
-        <TextInput
+        <TouchableOpacity 
           style={styles.searchInput}
-          placeholder="Rechercher..."
-          placeholderTextColor={theme.colors.gray[400]}
-        />
+          onPress={onSearchPress}
+        >
+          <Text style={styles.searchPlaceholder}>Rechercher...</Text>
+        </TouchableOpacity>
       </View>
       <ScrollView
         horizontal
@@ -135,24 +138,20 @@ const styles = StyleSheet.create({
   headerContainer: {
     width: "100%",
     backgroundColor: "transparent",
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
   },
   headerContainerFullScreen: {
     backgroundColor: theme.colors.white,
   },
   searchBarContainer: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
   },
   searchInput: {
     backgroundColor: theme.colors.white,
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.sm+3,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: 50,
     fontSize: 16,
     shadowColor: theme.colors.black,
     shadowOffset: {
@@ -166,6 +165,8 @@ const styles = StyleSheet.create({
   placesContainer: {
     paddingVertical: theme.spacing.xs,
     paddingRight: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
   },
   placeChip: {
     backgroundColor: theme.colors.white,
@@ -175,6 +176,14 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.xs,
     borderWidth: 1,
     borderColor: "transparent",
+    shadowColor: theme.colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   placeChipSelected: {
     backgroundColor: `${theme.colors.primary}20`,
@@ -188,5 +197,9 @@ const styles = StyleSheet.create({
   placeTextSelected: {
     color: theme.colors.primary,
     fontWeight: "600",
+  },
+  searchPlaceholder: {
+    color: theme.colors.gray[400],
+    fontSize: 16,
   },
 });

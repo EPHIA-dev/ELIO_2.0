@@ -1,7 +1,7 @@
+import { MaterialIcons } from "@expo/vector-icons";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import React, { useCallback, useMemo, useRef } from "react";
-import { Dimensions, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { theme } from "../../styles/theme";
 import { SearchBottomContent } from "./SearchBottomContent";
 import SearchBottomSheetHeader from "./SearchBottomSheetHeader";
@@ -15,27 +15,21 @@ const SearchBottomSheet: React.FC<SearchBottomSheetProps> = ({
   onSheetChange,
   isFullScreen,
 }) => {
-  const insets = useSafeAreaInsets();
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const navbarHeight = 49;
-  const bottomSheetHeaderHeight = 80;
-
-  const screenHeight = Dimensions.get("window").height;
-  const mapOverlayHeaderHeight = insets.top + 60 + 40;
-  const availableHeight = screenHeight - mapOverlayHeaderHeight - navbarHeight;
-
-  const snapPoints = useMemo(
-    () => [110, availableHeight],
-    [availableHeight, bottomSheetHeaderHeight, navbarHeight]
-  );
+  
+  // Snappoints relatifs à la section bottomSheet
+  const snapPoints = useMemo(() => ["45%", "100%"], []);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
-      console.log("Current sheet index:", index);
       onSheetChange?.(index);
     },
     [onSheetChange]
   );
+
+  const handleMapPress = useCallback(() => {
+    bottomSheetRef.current?.snapToIndex(0);
+  }, []);
 
   const renderHeader = useCallback(
     () => <SearchBottomSheetHeader isFullScreen={isFullScreen} />,
@@ -56,10 +50,23 @@ const SearchBottomSheet: React.FC<SearchBottomSheetProps> = ({
         handleComponent={renderHeader}
         enablePanDownToClose={false}
         enableOverDrag={false}
-        enableContentPanningGesture={true}
       >
         <BottomSheetView style={styles.contentContainer}>
           <SearchBottomContent />
+          {isFullScreen && (
+            <TouchableOpacity
+              style={styles.mapButton}
+              onPress={handleMapPress}
+            >
+              <MaterialIcons 
+                name="map" 
+                size={24} 
+                color={theme.colors.white} 
+                style={styles.mapIcon}
+              />
+              <Text style={styles.mapButtonText}>Carte</Text>
+            </TouchableOpacity>
+          )}
         </BottomSheetView>
       </BottomSheet>
     </View>
@@ -85,11 +92,42 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+    minHeight: 0,
   },
   backgroundFullScreen: {
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
   },
+  mapButton: {
+    position: 'absolute',
+    bottom: 100,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    borderRadius: 50,
+    shadowColor: theme.colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  mapIcon: {
+    marginRight: theme.spacing.xs,
+    transform: [{ scale: 0.9 }],
+  },
+  mapButtonText: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
 });
 
 export default SearchBottomSheet;

@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from "react-native";
 import { CustomNavbar } from "../components/CustomNavbar";
 import { useAuth } from "../contexts/AuthContext";
 import { useUserProfile } from "../hooks/useUserProfile";
+import { useSearchOverlay } from "../contexts/SearchOverlayContext";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { SignUpScreen } from "../screens/auth/SignUpScreen";
 import { CalendarScreen } from "../screens/main/CalendarScreen";
@@ -28,9 +29,11 @@ const AuthNavigator = () => {
 };
 
 const MainNavigator = () => {
+  const { isSearching } = useSearchOverlay();
+
   return (
     <MainTab.Navigator
-      tabBar={(props) => <CustomNavbar {...props} />}
+      tabBar={(props) => <CustomNavbar {...props} isVisible={!isSearching} />}
       screenOptions={{
         headerShown: false,
       }}

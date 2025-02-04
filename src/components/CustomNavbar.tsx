@@ -66,11 +66,23 @@ const TabIcon = ({ route, isFocused }: { route: any; isFocused: boolean }) => {
   );
 };
 
+interface CustomNavbarProps extends BottomTabBarProps {
+  isVisible?: boolean;
+}
+
 export const CustomNavbar = ({
   state,
   descriptors,
   navigation,
-}: BottomTabBarProps) => {
+  isVisible = true,
+}: CustomNavbarProps) => {
+  console.log('CustomNavbar - isVisible:', isVisible);
+
+  if (!isVisible) {
+    console.log('CustomNavbar - returning null');
+    return null;
+  }
+
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const isSearchPage = state.routes[state.index].name === "Search";

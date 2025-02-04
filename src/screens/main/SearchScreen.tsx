@@ -4,6 +4,8 @@ import { Alert, StyleSheet, View } from "react-native";
 import { MapOverlay } from "../../components/map-overlay/MapOverlay";
 import { Map } from "../../components/map/Map";
 import { theme } from "../../styles/theme";
+import { SearchOverlay } from '../../components/search-overlay/SearchOverlay';
+import { useSearchOverlay } from '../../contexts/SearchOverlayContext';
 
 interface Region {
   latitude: number;
@@ -16,12 +18,14 @@ export const SearchScreen = () => {
   const [location, setLocation] = useState<Location.LocationObject | null>(
     null
   );
+  const [bottomSheetIndex, setBottomSheetIndex] = useState(0);
   const [region, setRegion] = useState<Region>({
     latitude: 48.8566,
     longitude: 2.3522,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const { isSearching, setIsSearching } = useSearchOverlay();
 
   useEffect(() => {
     (async () => {
@@ -56,10 +60,34 @@ export const SearchScreen = () => {
     })();
   }, []);
 
+  const handleSearchPress = () => {
+    console.log('SearchScreen - handleSearchPress called');
+    setIsSearching(true);
+  };
+
+  const handleSearchClose = () => {
+    console.log('SearchScreen - handleSearchClose called');
+    setIsSearching(false);
+  };
+
   return (
     <View style={styles.container}>
       <Map location={location} region={region} />
-      <MapOverlay />
+      <View style={styles.overlayContainer}>
+        <MapOverlay 
+          bottomSheetIndex={bottomSheetIndex}
+          setBottomSheetIndex={setBottomSheetIndex}
+          onSearchPress={handleSearchPress}
+        />
+      </View>
+      {isSearching && (
+        <View style={styles.searchOverlayContainer}>
+          <SearchOverlay
+            visible={true}
+            onClose={handleSearchClose}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -68,5 +96,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.white,
+  },
+  overlayContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  searchOverlayContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
   },
 });

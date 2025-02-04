@@ -10,8 +10,13 @@ import {
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "../config/firebase";
 
+interface ExtendedUser extends User {
+  professionId?: string;
+  // autres champs personnalisés si nécessaire
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: ExtendedUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<UserCredential>;
   signUp: (email: string, password: string) => Promise<UserCredential>;
@@ -31,7 +36,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const storedUserId = await AsyncStorage.getItem("userId");
         if (storedUserId && auth.currentUser) {
-          setUser(auth.currentUser);
+          setUser(auth.currentUser as ExtendedUser);
         }
       } catch (error) {
         console.error(
@@ -55,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (user) {
         try {
           await AsyncStorage.setItem("userId", user.uid);
-          setUser(user);
+          setUser(user as ExtendedUser);
         } catch (error) {
           console.error("Erreur lors du stockage de l'ID utilisateur:", error);
         }

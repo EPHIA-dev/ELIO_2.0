@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/contexts/AuthContext";
 import { AppNavigator } from "./src/navigation/AppNavigator";
+import { SearchOverlayProvider } from "./src/contexts/SearchOverlayContext";
 
 export default function App() {
   return (
@@ -14,10 +15,12 @@ export default function App() {
       <SafeAreaProvider>
         <BottomSheetModalProvider>
           <AuthProvider>
-            <NavigationContainer>
-              <AppNavigator />
-              <StatusBar style="auto" />
-            </NavigationContainer>
+            <SearchOverlayProvider>
+              <NavigationContainer>
+                <AppNavigator />
+                <StatusBar style="auto" />
+              </NavigationContainer>
+            </SearchOverlayProvider>
           </AuthProvider>
         </BottomSheetModalProvider>
       </SafeAreaProvider>
