@@ -1,194 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Animated, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../styles/theme';
-import { collection, getDocs, query, where, arrayContains } from 'firebase/firestore';
+import { collection, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { SearchResult } from '../../../types/search';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useUserData } from '../../../hooks/useUserData';
 
 interface LocationSearchProps {
-  onNext: (results: SearchResult[]) => void;
-  isActive: boolean;
+  availableIds: string[];
+  selectedIds: string[];
+  onSelect: (ids: string[]) => void;
+  loading?: boolean;
+}
+
+interface EstablishmentData {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
 }
 
 export const LocationSearch: React.FC<LocationSearchProps> = ({
-  onNext,
-  isActive,
+  availableIds,
+  selectedIds,
+  onSelect,
+  loading = false
 }) => {
-  const { user } = useAuth();
-  const { userData, loading: userDataLoading, error: userDataError } = useUserData();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [selectedResults, setSelectedResults] = useState<SearchResult[]>([]);
-  const [facilities, setFacilities] = useState<SearchResult[]>([]);
-  const [cities, setCities] = useState<Set<string>>(new Set());
-  const contentAnimation = new Animated.Value(0);
+  const [establishmentData, setEstablishmentData] = useState<Record<string, EstablishmentData>>({});
 
-  useEffect(() => {
-    if (!userDataLoading && userData?.professionId) {
-      console.log('Fetching facilities with professionId:', userData.professionId);
-      fetchFacilities();
-    }
-  }, [userData?.professionId, userDataLoading]);
+  // Charger les données des établissements au besoin
+  const loadEstablishmentData = async (id: string) => {
+    if (establishmentData[id]) return;
 
-  useEffect(() => {
-    Animated.timing(contentAnimation, {
-      toValue: isSearchActive ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [isSearchActive]);
-
-  useEffect(() => {
-    onNext(selectedResults);
-  }, [selectedResults]);
-
-  const fetchFacilities = async () => {
     try {
-      if (!userData?.professionId) {
-        console.log('Current userData:', userData);
-        console.log('Current user:', user);
-        return;
-      }
-
-      const facilitiesRef = collection(db, 'establishments');
-      const q = query(
-        facilitiesRef,
-        where('professionIds', 'array-contains', userData.professionId)
-      );
+      const docRef = doc(collection(db, 'establishments'), id);
+      const docSnap = await getDoc(docRef);
       
-      const snapshot = await getDocs(q);
-      const facilitiesData: SearchResult[] = [];
-      const citiesSet = new Set<string>();
-
-      snapshot.forEach((doc) => {
-        const facility = doc.data();
-        facilitiesData.push({
-          id: doc.id,
-          name: facility.name,
-          address: facility.address,
-          city: facility.city,
-          type: 'facility',
-        });
-        citiesSet.add(facility.city);
-      });
-
-      setFacilities(facilitiesData);
-      setCities(citiesSet);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setEstablishmentData(prev => ({
+          ...prev,
+          [id]: {
+            id,
+            name: data.name || '',
+            address: data.address || '',
+            city: data.city || '',
+          }
+        }));
+      }
     } catch (error) {
-      console.error('Error fetching facilities:', error);
+      console.error('Error loading establishment data:', error);
     }
   };
 
-  const getSearchResults = () => {
-    if (!isSearchActive) return [];
-    if (!searchQuery) {
-      const results: SearchResult[] = [];
-      
-      cities.forEach(city => {
-        results.push({
-          id: `city-${city}`,
-          name: city,
-          type: 'city',
-        });
-      });
+  // Charger les données pour tous les IDs disponibles
+  React.useEffect(() => {
+    availableIds.forEach(loadEstablishmentData);
+  }, [availableIds]);
 
-      return [...results, ...facilities];
-    }
-
-    const query = searchQuery.toLowerCase();
-    const results: SearchResult[] = [];
-
-    cities.forEach(city => {
-      if (city.toLowerCase().includes(query)) {
-        results.push({
-          id: `city-${city}`,
-          name: city,
-          type: 'city',
-        });
-      }
-    });
-
-    facilities.forEach(facility => {
-      if (
-        facility.name.toLowerCase().includes(query) ||
-        facility.address.toLowerCase().includes(query)
-      ) {
-        results.push(facility);
-      }
-    });
-
-    return results;
+  const handleSelect = (id: string) => {
+    const newSelection = selectedIds.includes(id)
+      ? selectedIds.filter(selectedId => selectedId !== id)
+      : [...selectedIds, id];
+    onSelect(newSelection);
   };
 
-  const renderSearchResult = (result: SearchResult) => {
-    const isSelected = selectedResults.some(item => item.id === result.id);
+  const getFilteredIds = () => {
+    if (!searchQuery) return availableIds;
     
-    return (
-      <TouchableOpacity
-        key={result.id}
-        style={[
-          styles.searchResultItem,
-          isSelected && styles.searchResultItemSelected
-        ]}
-        onPress={() => handleResultSelect(result)}
-      >
-        <View style={[
-          styles.searchResultIcon,
-          result.type === 'city' ? styles.searchResultIconCity : styles.searchResultIconFacility,
-          isSelected && styles.searchResultIconSelected
-        ]}>
-          <Ionicons
-            name={isSelected ? "checkmark" : (result.type === 'city' ? 'location' : 'medical')}
-            size={24}
-            color={isSelected ? theme.colors.white : theme.colors.primary}
-          />
-        </View>
-        <View style={styles.searchResultContent}>
-          <Text style={[
-            styles.searchResultName,
-            isSelected && styles.searchResultTextSelected
-          ]}>
-            {result.name}
-          </Text>
-          {result.type === 'facility' && (
-            <Text style={[
-              styles.searchResultAddress,
-              isSelected && styles.searchResultAddressSelected
-            ]}>
-              {result.address}
-            </Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const handleResultSelect = (result: SearchResult) => {
-    setSelectedResults(prev => {
-      const isAlreadySelected = prev.some(item => item.id === result.id);
-      return isAlreadySelected 
-        ? prev.filter(item => item.id !== result.id)
-        : [...prev, result];
+    const query = searchQuery.toLowerCase();
+    return availableIds.filter(id => {
+      const data = establishmentData[id];
+      if (!data) return false;
+      
+      return (
+        data.name.toLowerCase().includes(query) ||
+        data.address.toLowerCase().includes(query) ||
+        data.city.toLowerCase().includes(query)
+      );
     });
   };
 
-  if (!isActive) return null;
-
-  if (userDataLoading) {
+  if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  if (userDataError) {
-    return (
-      <View style={[styles.container, styles.errorContainer]}>
-        <Text style={styles.errorText}>Une erreur est survenue</Text>
       </View>
     );
   }
@@ -199,12 +96,11 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
         <Ionicons name="search" size={20} color={theme.colors.text.secondary} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher une ville ou un établissement"
+          placeholder="Rechercher un établissement"
           placeholderTextColor={theme.colors.text.secondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
           onFocus={() => setIsSearchActive(true)}
-          onBlur={() => !searchQuery && setIsSearchActive(false)}
         />
         {searchQuery && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -213,51 +109,60 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
         )}
       </View>
 
-      {!isSearchActive ? (
-        <Animated.View style={{
-          transform: [{
-            translateY: contentAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, -56]
-            })
-          }]
-        }}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.resultsContainer}
+      >
+        {getFilteredIds().map(id => {
+          const data = establishmentData[id];
+          if (!data) return null;
+
+          const isSelected = selectedIds.includes(id);
           
-
-          <Text style={styles.sectionTitle}>Établissements :</Text>
-
-          <ScrollView 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.facilitiesContainer}
-          >
-            {facilities.slice(0, 3).map(facility => renderSearchResult(facility))}
-          </ScrollView>
-        </Animated.View>
-      ) : (
-        <View style={styles.searchContent}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.searchResultsContainer}
-          >
-            {getSearchResults().map(renderSearchResult)}
-          </ScrollView>
-
-          {selectedResults.length > 0 && (
-            <View style={styles.selectionInfo}>
-              <Text style={styles.selectionInfoText}>
-                {selectedResults.length} sélection{selectedResults.length > 1 ? 's' : ''}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
+          return (
+            <TouchableOpacity
+              key={id}
+              style={[
+                styles.resultItem,
+                isSelected && styles.resultItemSelected
+              ]}
+              onPress={() => handleSelect(id)}
+            >
+              <View style={[
+                styles.resultIcon,
+                isSelected && styles.resultIconSelected
+              ]}>
+                <Ionicons
+                  name={isSelected ? "checkmark" : "medical"}
+                  size={24}
+                  color={isSelected ? theme.colors.white : theme.colors.primary}
+                />
+              </View>
+              <View style={styles.resultContent}>
+                <Text style={[
+                  styles.resultName,
+                  isSelected && styles.resultTextSelected
+                ]}>
+                  {data.name}
+                </Text>
+                <Text style={[
+                  styles.resultAddress,
+                  isSelected && styles.resultAddressSelected
+                ]}>
+                  {data.address}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    gap: theme.spacing.md,
+    padding: theme.spacing.md,
   },
   searchBar: {
     flexDirection: 'row',
@@ -265,127 +170,64 @@ const styles = StyleSheet.create({
     padding: theme.spacing.sm,
     backgroundColor: theme.colors.gray[100],
     borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.md,
   },
   searchInput: {
     flex: 1,
-    padding: theme.spacing.sm,
+    marginLeft: theme.spacing.sm,
     fontSize: 16,
+    color: theme.colors.text.primary,
   },
-  nearMeBox: {
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 200,
+  },
+  resultsContainer: {
+    gap: theme.spacing.sm,
+  },
+  resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.sm,
-    backgroundColor: theme.colors.gray[100],
-    borderRadius: theme.borderRadius.md,
-  },
-  nearMeIconContainer: {
-    marginRight: theme.spacing.sm,
-  },
-  nearMeContent: {
-    flex: 1,
-  },
-  nearMeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  nearMeSubtitle: {
-    fontSize: 14,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: theme.spacing.sm,
-  },
-  facilitiesContainer: {
-    padding: theme.spacing.sm,
-  },
-  searchContent: {
-    flex: 1,
-  },
-  searchResultsContainer: {
-    padding: theme.spacing.sm,
-  },
-  selectionInfo: {
-    padding: theme.spacing.sm,
-    backgroundColor: theme.colors.gray[100],
-    borderRadius: theme.borderRadius.md,
-    marginTop: theme.spacing.sm,
-  },
-  selectionInfoText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.sm,
+    padding: theme.spacing.md,
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.gray[200],
-    shadowColor: theme.colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
   },
-  searchResultItemSelected: {
+  resultItemSelected: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
-  searchResultIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.borderRadius.md,
-    alignItems: 'center',
+  resultIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.primary}15`,
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: theme.spacing.md,
   },
-  searchResultIconCity: {
-    backgroundColor: `${theme.colors.primary}15`,
-  },
-  searchResultIconFacility: {
-    backgroundColor: `${theme.colors.primary}10`,
-  },
-  searchResultIconSelected: {
+  resultIconSelected: {
     backgroundColor: `${theme.colors.white}20`,
   },
-  searchResultContent: {
+  resultContent: {
     flex: 1,
     gap: 4,
   },
-  searchResultName: {
+  resultName: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
-  searchResultAddress: {
+  resultAddress: {
     fontSize: 14,
     color: theme.colors.text.secondary,
   },
-  searchResultTextSelected: {
+  resultTextSelected: {
     color: theme.colors.white,
   },
-  searchResultAddressSelected: {
+  resultAddressSelected: {
     color: `${theme.colors.white}CC`,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: theme.colors.error,
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 }); 

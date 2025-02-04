@@ -39,14 +39,20 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     try {
+      // 1. Créer l'utilisateur dans Firebase Auth
       const userCredential = await signUp(email, password);
+      
+      // 2. Obtenir le token d'authentification
+      const token = await userCredential.user.getIdToken();
       
       console.log("Tentative de connexion à:", `${BACKEND_URL}/create_user`);
       
+      // 3. Envoyer la requête avec le token dans le header
       const response = await fetch(`${BACKEND_URL}/create_user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Ajout du token
         },
         body: JSON.stringify({
           uid: userCredential.user.uid,

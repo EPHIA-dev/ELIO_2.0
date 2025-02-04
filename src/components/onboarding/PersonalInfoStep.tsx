@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { theme } from "../../styles/theme";
+import { updateUserProfile } from '../../api/backend';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PersonalInfoStepProps {
   onSubmit: (data: {
@@ -29,6 +31,7 @@ export const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({
   onSubmit,
   initialValues = {},
 }) => {
+  const { user } = useAuth();
   const [firstName, setFirstName] = useState(initialValues.firstName || "");
   const [lastName, setLastName] = useState(initialValues.lastName || "");
   const [birthDate, setBirthDate] = useState<Date>(
@@ -36,15 +39,26 @@ export const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
+  const handleDateChange = async (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === "ios");
     if (selectedDate) {
       setBirthDate(selectedDate);
-      onSubmit({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        birthDate: Timestamp.fromDate(selectedDate),
-      });
+      try {
+        if (user?.uid) {
+          await updateUserProfile(user.uid, {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            birthDate: selectedDate,
+          });
+        }
+        onSubmit({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          birthDate: Timestamp.fromDate(selectedDate),
+        });
+      } catch (error) {
+        console.error('Error updating birth date:', error);
+      }
     }
   };
 
@@ -56,10 +70,7 @@ export const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({
     });
   };
 
-  const handleInputChange = (
-    field: "firstName" | "lastName",
-    value: string
-  ) => {
+  const handleInputChange = (field: "firstName" | "lastName", value: string) => {
     if (field === "firstName") {
       setFirstName(value);
     } else {
@@ -72,6 +83,20 @@ export const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({
         lastName: field === "lastName" ? value : lastName,
         birthDate: Timestamp.fromDate(birthDate),
       });
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (user?.uid) {
+        await updateUserProfile(user.uid, {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          birthDate,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating personal info:', error);
     }
   };
 

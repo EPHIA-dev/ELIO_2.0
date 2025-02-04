@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { db } from "../../config/firebase";
 import { theme } from "../../styles/theme";
+import { updateUserProfile } from '../../api/backend';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Specialty {
   id: string;
@@ -28,8 +30,10 @@ export const SpecialtiesStep: React.FC<SpecialtiesStepProps> = ({
   onSelectSpecialties,
   selectedSpecialtyIds,
 }) => {
+  const { user } = useAuth();
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [loading, setLoading] = useState(true);
+  const [localSelectedIds, setLocalSelectedIds] = useState(selectedSpecialtyIds);
 
   useEffect(() => {
     const fetchSpecialties = async () => {
@@ -56,10 +60,23 @@ export const SpecialtiesStep: React.FC<SpecialtiesStepProps> = ({
   }, [professionId]);
 
   const toggleSpecialty = (specialtyId: string) => {
-    const newSelection = selectedSpecialtyIds.includes(specialtyId)
-      ? selectedSpecialtyIds.filter((id) => id !== specialtyId)
-      : [...selectedSpecialtyIds, specialtyId];
+    const newSelection = localSelectedIds.includes(specialtyId)
+      ? localSelectedIds.filter((id) => id !== specialtyId)
+      : [...localSelectedIds, specialtyId];
+    setLocalSelectedIds(newSelection);
     onSelectSpecialties(newSelection);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (user?.uid) {
+        await updateUserProfile(user.uid, {
+          specialityIds: localSelectedIds,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating specialties:', error);
+    }
   };
 
   if (loading) {
@@ -77,7 +94,7 @@ export const SpecialtiesStep: React.FC<SpecialtiesStepProps> = ({
           key={specialty.id}
           style={[
             styles.specialtyCard,
-            selectedSpecialtyIds.includes(specialty.id) &&
+            localSelectedIds.includes(specialty.id) &&
               styles.specialtyCardSelected,
           ]}
           onPress={() => toggleSpecialty(specialty.id)}
@@ -85,7 +102,7 @@ export const SpecialtiesStep: React.FC<SpecialtiesStepProps> = ({
           <Text
             style={[
               styles.specialtyName,
-              selectedSpecialtyIds.includes(specialty.id) &&
+              localSelectedIds.includes(specialty.id) &&
                 styles.specialtyNameSelected,
             ]}
           >

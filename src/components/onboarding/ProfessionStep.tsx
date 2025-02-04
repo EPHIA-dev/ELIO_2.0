@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { db } from "../../config/firebase";
 import { theme } from "../../styles/theme";
+import { updateUserProfile } from '../../api/backend';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Profession {
   id: string;
@@ -25,8 +27,10 @@ export const ProfessionStep: React.FC<ProfessionStepProps> = ({
   onSelect,
   selectedProfessionId,
 }) => {
+  const { user } = useAuth();
   const [professions, setProfessions] = useState<Profession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [localSelectedId, setLocalSelectedId] = useState(selectedProfessionId);
 
   useEffect(() => {
     const fetchProfessions = async () => {
@@ -47,6 +51,23 @@ export const ProfessionStep: React.FC<ProfessionStepProps> = ({
     fetchProfessions();
   }, []);
 
+  const handleSelect = (professionId: string) => {
+    setLocalSelectedId(professionId);
+    onSelect(professionId);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (user?.uid && localSelectedId) {
+        await updateUserProfile(user.uid, {
+          professionId: localSelectedId,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating profession:', error);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -62,15 +83,15 @@ export const ProfessionStep: React.FC<ProfessionStepProps> = ({
           key={profession.id}
           style={[
             styles.professionCard,
-            selectedProfessionId === profession.id &&
+            localSelectedId === profession.id &&
               styles.professionCardSelected,
           ]}
-          onPress={() => onSelect(profession.id)}
+          onPress={() => handleSelect(profession.id)}
         >
           <Text
             style={[
               styles.professionName,
-              selectedProfessionId === profession.id &&
+              localSelectedId === profession.id &&
                 styles.professionNameSelected,
             ]}
           >

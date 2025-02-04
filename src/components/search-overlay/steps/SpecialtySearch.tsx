@@ -1,63 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../../../styles/theme';
-import { useSpecialties, Specialty } from '../../../hooks/useSpecialties';
+import { collection, doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 
 interface SpecialtySearchProps {
-  onNext: (specialty: Specialty[]) => void;
-  isActive: boolean;
+  availableIds: string[];
+  selectedIds: string[];
+  onSelect: (ids: string[]) => void;
+  loading?: boolean;
 }
 
-export const SpecialtySearch: React.FC<SpecialtySearchProps> = ({ onNext, isActive }) => {
-  const { specialties, loading, error } = useSpecialties();
-  const [selectedSpecialties, setSelectedSpecialties] = useState<Specialty[]>([]);
+interface SpecialtyData {
+  id: string;
+  name: string;
+  description?: string;
+}
 
-  useEffect(() => {
-    onNext(selectedSpecialties);
-  }, [selectedSpecialties]);
+export const SpecialtySearch: React.FC<SpecialtySearchProps> = ({
+  availableIds,
+  selectedIds,
+  onSelect,
+  loading = false
+}) => {
+  const [specialtyData, setSpecialtyData] = useState<Record<string, SpecialtyData>>({});
 
-  const handleSelectSpecialty = (specialty: Specialty) => {
-    setSelectedSpecialties(prev => {
-      const isAlreadySelected = prev.some(item => item.id === specialty.id);
-      return isAlreadySelected
-        ? prev.filter(item => item.id !== specialty.id)
-        : [...prev, specialty];
-    });
+  // Charger les données des spécialités au besoin
+  const loadSpecialtyData = async (id: string) => {
+    if (specialtyData[id]) return;
+
+    try {
+      const docRef = doc(collection(db, 'specialties'), id);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSpecialtyData(prev => ({
+          ...prev,
+          [id]: {
+            id,
+            name: data.name || '',
+            description: data.description,
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading specialty data:', error);
+    }
   };
 
-  if (!isActive) return null;
+  // Charger les données pour tous les IDs disponibles
+  React.useEffect(() => {
+    availableIds.forEach(loadSpecialtyData);
+  }, [availableIds]);
+
+  const handleSelect = (id: string) => {
+    const newSelection = selectedIds.includes(id)
+      ? selectedIds.filter(selectedId => selectedId !== id)
+      : [...selectedIds, id];
+    onSelect(newSelection);
+  };
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={specialties}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          const isSelected = selectedSpecialties.some(s => s.id === item.id);
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.resultsContainer}
+      >
+        {availableIds.map(id => {
+          const data = specialtyData[id];
+          if (!data) return null;
+
+          const isSelected = selectedIds.includes(id);
+          
           return (
             <TouchableOpacity
+              key={id}
               style={[
                 styles.specialtyItem,
                 isSelected && styles.selectedItem
               ]}
-              onPress={() => handleSelectSpecialty(item)}
+              onPress={() => handleSelect(id)}
             >
               <View style={[
                 styles.specialtyIcon,
@@ -74,66 +106,57 @@ export const SpecialtySearch: React.FC<SpecialtySearchProps> = ({ onNext, isActi
                   styles.specialtyName,
                   isSelected && styles.specialtyTextSelected
                 ]}>
-                  {item.name}
+                  {data.name}
                 </Text>
-                {item.description && (
+                {data.description && (
                   <Text style={[
                     styles.specialtyDescription,
                     isSelected && styles.specialtyDescriptionSelected
                   ]}>
-                    {item.description}
+                    {data.description}
                   </Text>
                 )}
               </View>
             </TouchableOpacity>
           );
-        }}
-        style={styles.list}
-      />
+        })}
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-  },
-  centerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
     padding: theme.spacing.md,
   },
-  list: {
-    maxHeight: '100%',
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 200,
+  },
+  resultsContainer: {
+    gap: theme.spacing.sm,
   },
   specialtyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.sm,
+    padding: theme.spacing.md,
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.gray[200],
-    shadowColor: theme.colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
   },
   selectedItem: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
   specialtyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: `${theme.colors.primary}10`,
-    alignItems: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.primary}15`,
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: theme.spacing.md,
   },
   specialtyIconSelected: {
@@ -157,10 +180,5 @@ const styles = StyleSheet.create({
   },
   specialtyDescriptionSelected: {
     color: `${theme.colors.white}CC`,
-  },
-  errorText: {
-    color: theme.colors.error,
-    fontSize: 16,
-    textAlign: 'center',
   },
 });

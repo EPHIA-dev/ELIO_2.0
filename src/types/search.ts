@@ -12,7 +12,13 @@ export interface City {
   type: 'city';
 }
 
-export type SearchResult = HealthcareFacility | City;
+export interface SearchResult {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  type: 'facility' | 'city';
+}
 
 export interface Specialty {
   id: string;

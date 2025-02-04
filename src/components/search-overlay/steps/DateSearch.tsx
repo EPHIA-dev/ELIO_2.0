@@ -1,130 +1,153 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Dimensions } from 'react-native';
-import { Calendar, CalendarList } from 'react-native-calendars';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../../../styles/theme';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface DateSearchProps {
-  onNext: (dates: { startDate: string; endDate: string } | null) => void;
-  isActive: boolean;
-}
-
-interface MarkedDates {
-  [date: string]: {
-    startingDay?: boolean;
-    endingDay?: boolean;
-    color?: string;
-    textColor?: string;
-    selected?: boolean;
-    marked?: boolean;
-  };
+  selectedDates: { startDate: string; endDate: string } | null;
+  onSelect: (dates: { startDate: string; endDate: string } | null) => void;
 }
 
 export const DateSearch: React.FC<DateSearchProps> = ({
-  onNext,
-  isActive,
+  selectedDates,
+  onSelect,
 }) => {
-  const [selectedStartDate, setSelectedStartDate] = useState<string | null>(null);
-  const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
-  const screenWidth = Dimensions.get('window').width;
-  const calendarWidth = screenWidth - (theme.spacing.md * 4);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [tempDates, setTempDates] = useState<{
+    start: Date;
+    end: Date;
+  }>(() => {
+    if (selectedDates) {
+      return {
+        start: new Date(selectedDates.startDate),
+        end: new Date(selectedDates.endDate),
+      };
+    }
+    const today = new Date();
+    return {
+      start: today,
+      end: new Date(today.setDate(today.getDate() + 7)),
+    };
+  });
 
-  useEffect(() => {
-    if (selectedStartDate && selectedEndDate) {
-      onNext({
-        startDate: selectedStartDate,
-        endDate: selectedEndDate,
+  const handleStartDateChange = (event: any, date?: Date) => {
+    setShowStartPicker(false);
+    if (date) {
+      setTempDates(prev => {
+        const newDates = {
+          start: date,
+          end: prev.end < date ? date : prev.end,
+        };
+        onSelect({
+          startDate: format(newDates.start, 'yyyy-MM-dd'),
+          endDate: format(newDates.end, 'yyyy-MM-dd'),
+        });
+        return newDates;
       });
-    } else {
-      onNext(null);
     }
-  }, [selectedStartDate, selectedEndDate]);
+  };
 
-  if (!isActive) return null;
-
-  const getMarkedDates = (): MarkedDates => {
-    if (!selectedStartDate) return {};
-    
-    const markedDates: MarkedDates = {};
-    
-    if (selectedStartDate) {
-      markedDates[selectedStartDate] = {
-        startingDay: true,
-        color: theme.colors.primary,
-        textColor: theme.colors.white,
-      };
+  const handleEndDateChange = (event: any, date?: Date) => {
+    setShowEndPicker(false);
+    if (date) {
+      setTempDates(prev => {
+        const newDates = {
+          start: prev.start,
+          end: date < prev.start ? prev.start : date,
+        };
+        onSelect({
+          startDate: format(newDates.start, 'yyyy-MM-dd'),
+          endDate: format(newDates.end, 'yyyy-MM-dd'),
+        });
+        return newDates;
+      });
     }
-
-    if (selectedEndDate) {
-      markedDates[selectedEndDate] = {
-        endingDay: true,
-        color: theme.colors.primary,
-        textColor: theme.colors.white,
-      };
-
-      // Marquer les dates entre le début et la fin
-      if (selectedStartDate) {
-        let currentDate = new Date(selectedStartDate);
-        const endDate = new Date(selectedEndDate);
-        
-        while (currentDate < endDate) {
-          currentDate.setDate(currentDate.getDate() + 1);
-          const dateString = currentDate.toISOString().split('T')[0];
-          
-          if (dateString !== selectedEndDate) {
-            markedDates[dateString] = {
-              color: `${theme.colors.primary}20`,
-              textColor: theme.colors.text.primary,
-            };
-          }
-        }
-      }
-    }
-
-    return markedDates;
   };
 
   return (
     <View style={styles.container}>
-      <CalendarList
-        horizontal={true}
-        pagingEnabled={true}
-        calendarWidth={calendarWidth}
-        pastScrollRange={0}
-        futureScrollRange={12}
-        scrollEnabled={true}
-        showScrollIndicator={false}
-        minDate={new Date().toISOString().split('T')[0]}
-        markingType={'period'}
-        markedDates={getMarkedDates()}
-        onDayPress={(day) => {
-          if (!selectedStartDate || selectedEndDate) {
-            setSelectedStartDate(day.dateString);
-            setSelectedEndDate(null);
-          } else {
-            if (new Date(day.dateString) < new Date(selectedStartDate)) {
-              setSelectedStartDate(day.dateString);
-            } else {
-              setSelectedEndDate(day.dateString);
-            }
-          }
-        }}
-        theme={{
-          calendarBackground: 'transparent',
-          textSectionTitleColor: theme.colors.text.primary,
-          selectedDayBackgroundColor: theme.colors.primary,
-          selectedDayTextColor: theme.colors.white,
-          todayTextColor: theme.colors.primary,
-          dayTextColor: theme.colors.text.primary,
-          textDisabledColor: theme.colors.gray[300],
-          monthTextColor: theme.colors.text.primary,
-        }}
-      />
+      <View style={styles.datePickersContainer}>
+        <TouchableOpacity
+          style={styles.datePickerButton}
+          onPress={() => setShowStartPicker(true)}
+        >
+          <MaterialIcons name="calendar-today" size={24} color={theme.colors.primary} />
+          <View style={styles.dateTextContainer}>
+            <Text style={styles.dateLabel}>Date de début</Text>
+            <Text style={styles.dateValue}>
+              {format(tempDates.start, 'dd MMMM yyyy', { locale: fr })}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.datePickerButton}
+          onPress={() => setShowEndPicker(true)}
+        >
+          <MaterialIcons name="calendar-today" size={24} color={theme.colors.primary} />
+          <View style={styles.dateTextContainer}>
+            <Text style={styles.dateLabel}>Date de fin</Text>
+            <Text style={styles.dateValue}>
+              {format(tempDates.end, 'dd MMMM yyyy', { locale: fr })}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {showStartPicker && (
+        <DateTimePicker
+          value={tempDates.start}
+          mode="date"
+          display="default"
+          onChange={handleStartDateChange}
+          minimumDate={new Date()}
+        />
+      )}
+
+      {showEndPicker && (
+        <DateTimePicker
+          value={tempDates.end}
+          mode="date"
+          display="default"
+          onChange={handleEndDateChange}
+          minimumDate={tempDates.start}
+        />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    padding: theme.spacing.md,
+  },
+  datePickersContainer: {
     gap: theme.spacing.md,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
+  },
+  dateTextContainer: {
+    marginLeft: theme.spacing.md,
+  },
+  dateLabel: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    marginBottom: 4,
+  },
+  dateValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
   },
 }); 
