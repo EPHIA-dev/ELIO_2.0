@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { db } from "../../config/firebase";
 import { theme } from "../../styles/theme";
-import { updateUserProfile } from '../../api/backend';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Specialty {
@@ -65,18 +64,6 @@ export const SpecialtiesStep: React.FC<SpecialtiesStepProps> = ({
       : [...localSelectedIds, specialtyId];
     setLocalSelectedIds(newSelection);
     onSelectSpecialties(newSelection);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      if (user?.uid) {
-        await updateUserProfile(user.uid, {
-          specialityIds: localSelectedIds,
-        });
-      }
-    } catch (error) {
-      console.error('Error updating specialties:', error);
-    }
   };
 
   if (loading) {

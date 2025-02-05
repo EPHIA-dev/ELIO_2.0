@@ -1,156 +1,102 @@
-import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Timestamp } from "firebase/firestore";
 import React, { useState } from "react";
 import {
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { theme } from "../../styles/theme";
-import { updateUserProfile } from '../../api/backend';
 import { useAuth } from '../../contexts/AuthContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface PersonalInfoStepProps {
-  onSubmit: (data: {
+  onUpdatePersonalInfo: (info: {
     firstName: string;
     lastName: string;
-    birthDate: Timestamp;
+    birthDate: Date | null;
   }) => void;
-  initialValues?: {
-    firstName?: string;
-    lastName?: string;
-    birthDate?: Timestamp;
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    birthDate: Date | null;
   };
 }
 
 export const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({
-  onSubmit,
-  initialValues = {},
+  onUpdatePersonalInfo,
+  personalInfo,
 }) => {
-  const { user } = useAuth();
-  const [firstName, setFirstName] = useState(initialValues.firstName || "");
-  const [lastName, setLastName] = useState(initialValues.lastName || "");
-  const [birthDate, setBirthDate] = useState<Date>(
-    initialValues.birthDate ? initialValues.birthDate.toDate() : new Date()
-  );
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const handleDateChange = async (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === "ios");
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
     if (selectedDate) {
-      setBirthDate(selectedDate);
-      try {
-        if (user?.uid) {
-          await updateUserProfile(user.uid, {
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            birthDate: selectedDate,
-          });
-        }
-        onSubmit({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          birthDate: Timestamp.fromDate(selectedDate),
-        });
-      } catch (error) {
-        console.error('Error updating birth date:', error);
-      }
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("fr-FR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const handleInputChange = (field: "firstName" | "lastName", value: string) => {
-    if (field === "firstName") {
-      setFirstName(value);
-    } else {
-      setLastName(value);
-    }
-
-    if (value.trim() && (field === "firstName" ? lastName : firstName).trim()) {
-      onSubmit({
-        firstName: field === "firstName" ? value : firstName,
-        lastName: field === "lastName" ? value : lastName,
-        birthDate: Timestamp.fromDate(birthDate),
+      onUpdatePersonalInfo({
+        ...personalInfo,
+        birthDate: selectedDate
       });
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      if (user?.uid) {
-        await updateUserProfile(user.uid, {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          birthDate,
-        });
-      }
-    } catch (error) {
-      console.error('Error updating personal info:', error);
-    }
-  };
-
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity
-        style={[styles.inputCard, firstName.trim() && styles.inputCardSelected]}
-      >
+    <View style={styles.container}>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Prénom</Text>
         <TextInput
           style={styles.input}
-          placeholder="Prénom"
-          value={firstName}
-          onChangeText={(value) => handleInputChange("firstName", value)}
-          autoCapitalize="words"
-          autoComplete="given-name"
+          value={personalInfo.firstName}
+          onChangeText={(text) => 
+            onUpdatePersonalInfo({
+              ...personalInfo,
+              firstName: text
+            })
+          }
+          placeholder="Votre prénom"
         />
-      </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity
-        style={[styles.inputCard, lastName.trim() && styles.inputCardSelected]}
-      >
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Nom</Text>
         <TextInput
           style={styles.input}
-          placeholder="Nom"
-          value={lastName}
-          onChangeText={(value) => handleInputChange("lastName", value)}
-          autoCapitalize="words"
-          autoComplete="family-name"
+          value={personalInfo.lastName}
+          onChangeText={(text) => 
+            onUpdatePersonalInfo({
+              ...personalInfo,
+              lastName: text
+            })
+          }
+          placeholder="Votre nom"
         />
-      </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity
-        style={[styles.inputCard, styles.dateCard]}
-        onPress={() => setShowDatePicker(true)}
-      >
-        <Text style={styles.dateText}>{formatDate(birthDate)}</Text>
-        <Ionicons
-          name="calendar-outline"
-          size={24}
-          color={theme.colors.text.secondary}
-        />
-      </TouchableOpacity>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Date de naissance</Text>
+        <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={styles.dateButtonText}>
+            {personalInfo.birthDate
+              ? format(personalInfo.birthDate, 'dd MMMM yyyy', { locale: fr })
+              : "Sélectionner une date"}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {showDatePicker && (
         <DateTimePicker
-          value={birthDate}
+          value={personalInfo.birthDate || new Date()}
           mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
+          display="default"
           onChange={handleDateChange}
           maximumDate={new Date()}
-          minimumDate={new Date(1900, 0, 1)}
         />
       )}
-    </ScrollView>
+    </View>
   );
 };
 
@@ -159,29 +105,30 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
   },
-  inputCard: {
-    backgroundColor: theme.colors.white,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.gray[200],
+  inputContainer: {
+    marginBottom: theme.spacing.lg,
   },
-  inputCardSelected: {
-    backgroundColor: `${theme.colors.primary}10`,
-    borderColor: theme.colors.primary,
-  },
-  input: {
+  label: {
     fontSize: 16,
     color: theme.colors.text.primary,
-    padding: 0,
+    marginBottom: theme.spacing.xs,
   },
-  dateCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  input: {
+    backgroundColor: theme.colors.white,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    fontSize: 16,
   },
-  dateText: {
+  dateButton: {
+    backgroundColor: theme.colors.white,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+  },
+  dateButtonText: {
     fontSize: 16,
     color: theme.colors.text.primary,
   },

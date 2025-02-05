@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { db } from "../../config/firebase";
 import { theme } from "../../styles/theme";
-import { updateUserProfile } from '../../api/backend';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Profession {
@@ -19,12 +18,12 @@ interface Profession {
 }
 
 interface ProfessionStepProps {
-  onSelect: (professionId: string) => void;
-  selectedProfessionId?: string;
+  onSelectProfession: (professionId: string) => void;
+  selectedProfessionId: string | null;
 }
 
 export const ProfessionStep: React.FC<ProfessionStepProps> = ({
-  onSelect,
+  onSelectProfession,
   selectedProfessionId,
 }) => {
   const { user } = useAuth();
@@ -51,21 +50,9 @@ export const ProfessionStep: React.FC<ProfessionStepProps> = ({
     fetchProfessions();
   }, []);
 
-  const handleSelect = (professionId: string) => {
+  const selectProfession = (professionId: string) => {
     setLocalSelectedId(professionId);
-    onSelect(professionId);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      if (user?.uid && localSelectedId) {
-        await updateUserProfile(user.uid, {
-          professionId: localSelectedId,
-        });
-      }
-    } catch (error) {
-      console.error('Error updating profession:', error);
-    }
+    onSelectProfession(professionId);
   };
 
   if (loading) {
@@ -83,16 +70,14 @@ export const ProfessionStep: React.FC<ProfessionStepProps> = ({
           key={profession.id}
           style={[
             styles.professionCard,
-            localSelectedId === profession.id &&
-              styles.professionCardSelected,
+            localSelectedId === profession.id && styles.professionCardSelected,
           ]}
-          onPress={() => handleSelect(profession.id)}
+          onPress={() => selectProfession(profession.id)}
         >
           <Text
             style={[
               styles.professionName,
-              localSelectedId === profession.id &&
-                styles.professionNameSelected,
+              localSelectedId === profession.id && styles.professionNameSelected,
             ]}
           >
             {profession.name}
