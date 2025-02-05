@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Animated,
   FlatList,
@@ -13,69 +13,105 @@ import {
   View,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
+import { collection, query, where, orderBy, onSnapshot, getDoc, updateDoc, doc } from 'firebase/firestore';
+import { db, auth } from '../../config/firebase';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { useUserData } from '../../hooks/useUserData';
+import { theme } from '../../styles/theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ConversationsStackParamList } from '../../types/navigation';
 
 interface Conversation {
   id: string;
-  name: string;
-  message: string;
-  date: string;
-  time: string;
-  day: string;
-  status: "accepted" | "pending" | "refused";
-  image: any; // Using any for now as it's a require() image
+  createdAt: Date;
+  updatedAt: Date;
+  lastMessage: {
+    content: string;
+    senderId: string;
+    timestamp: Date;
+  };
+  participants: string[];
+  replacementId: string;
+  status: 'active' | 'closed' | 'cancelled';
+  replacement: {
+    establishmentId: string;
+    establishmentName?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    status: "accepted" | "pending" | "refused";
+  };
 }
 
-const mockConversations: Conversation[] = [
-  {
-    id: "1",
-    name: "Hôpital Saint-Joseph",
-    message: "Votre demande a été refusée.",
-    date: "18 janvier 2024",
-    time: "17h à 1h",
-    day: "jeudi",
-    status: "refused",
-    image: require("../../../assets/images/hospitals/saint-joseph.jpg"),
-  },
-  {
-    id: "2",
-    name: "Hôpital de la Conception",
-    message: "Votre demande a été acceptée.",
-    date: "18 janvier 2024",
-    time: "16h à 0h",
-    day: "jeudi",
-    status: "accepted",
-    image: require("../../../assets/images/hospitals/conception.jpg"),
-  },
-  {
-    id: "3",
-    name: "Hôpital de la Conception",
-    message: "D'accord, je vous confirme ma venue pour le remplacement.",
-    date: "15 janvier 2024",
-    time: "15h à 23h",
-    day: "lundi",
-    status: "accepted",
-    image: require("../../../assets/images/hospitals/conception.jpg"),
-  },
-  {
-    id: "4",
-    name: "Hôpital de la Timone",
-    message: "Nous étudions votre candidature.",
-    date: "14 janvier 2024",
-    time: "17h à 1h",
-    day: "dimanche",
-    status: "pending",
-    image: require("../../../assets/images/hospitals/timone.jpg"),
-  },
-];
+type TabType = "active" | "closed" | "cancelled";
 
-type TabType = "all" | "accepted" | "pending" | "refused";
+type ConversationsScreenNavigationProp = NativeStackNavigationProp<ConversationsStackParamList, 'ConversationsList'>;
 
 export const ConversationsScreen = () => {
-  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const { userData } = useUserData();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>("active");
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchAnimation = useRef(new Animated.Value(0)).current;
   const searchInputRef = useRef<TextInput>(null);
+  const navigation = useNavigation<ConversationsScreenNavigationProp>();
+
+  useEffect(() => {
+    if (!userData?.uid) return;
+
+    const conversationsRef = collection(db, 'conversations');
+    const q = query(
+      conversationsRef,
+      where('participants', 'array-contains', userData.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const conversationsData: Conversation[] = [];
+      
+      for (const docSnapshot of snapshot.docs) {
+        const data = docSnapshot.data();
+        
+        try {
+          const establishmentRef = doc(db, 'establishments', data.establishmentId);
+          const establishmentDoc = await getDoc(establishmentRef);
+          const establishmentName = establishmentDoc.data()?.name;
+
+          conversationsData.push({
+            id: docSnapshot.id,
+            createdAt: data.createdAt.toDate(),
+            updatedAt: data.updatedAt.toDate(),
+            lastMessage: {
+              content: data.lastMessage.content,
+              senderId: data.lastMessage.senderId,
+              timestamp: data.lastMessage.timestamp.toDate(),
+            },
+            participants: data.participants,
+            replacementId: data.replacementId,
+            status: data.status,
+            replacement: {
+              establishmentId: data.establishmentId,
+              establishmentName,
+              date: data.date,
+              startTime: data.startTime,
+              endTime: data.endTime,
+              status: data.status
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching conversation data:', error);
+        }
+      }
+      
+      conversationsData.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      
+      setConversations(conversationsData);
+    });
+
+    return () => unsubscribe();
+  }, [userData?.uid, activeTab]);
 
   const startSearch = () => {
     setIsSearching(true);
@@ -102,19 +138,18 @@ export const ConversationsScreen = () => {
     });
   };
 
-  const filteredConversations = mockConversations.filter((conv) => {
+  const filteredConversations = conversations.filter((conv) => {
     const matchesSearch = searchQuery
-      ? conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        conv.message.toLowerCase().includes(searchQuery.toLowerCase())
+      ? conv.replacement.establishmentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        conv.lastMessage.content.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
 
     if (!matchesSearch) return false;
 
     if (!isSearching) {
-      if (activeTab === "all") return true;
-      if (activeTab === "accepted") return conv.status === "accepted";
-      if (activeTab === "pending") return conv.status === "pending";
-      if (activeTab === "refused") return conv.status === "refused";
+      if (activeTab === "active") return true;
+      if (activeTab === "closed") return conv.status === "closed";
+      if (activeTab === "cancelled") return conv.status === "cancelled";
     }
 
     return true;
@@ -133,21 +168,30 @@ export const ConversationsScreen = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "accepted":
+      case "active":
         return "#4CAF50";
-      case "refused":
+      case "closed":
+        return "#9E9E9E";
+      case "cancelled":
         return "#F44336";
-      case "pending":
-        return "#FFC107";
       default:
         return "#4CAF50";
     }
   };
 
+  const formatDate = (date: Date) => {
+    return format(date, 'dd MMMM yyyy', { locale: fr });
+  };
+
   const renderItem = ({ item }: { item: Conversation }) => (
-    <TouchableOpacity style={styles.conversationItem}>
+    <TouchableOpacity 
+      style={styles.conversationItem}
+      onPress={() => navigation.navigate('Conversation', { conversationId: item.id })}
+    >
       <View style={styles.avatarContainer}>
-        <Image source={item.image} style={styles.avatar} />
+        <View style={styles.avatarPlaceholder}>
+          <Icon name="image-outline" size={24} color={theme.colors.gray[400]} />
+        </View>
         <View
           style={[
             styles.statusDot,
@@ -156,10 +200,10 @@ export const ConversationsScreen = () => {
         />
       </View>
       <View style={styles.conversationContent}>
-        <Text style={styles.hospitalName}>{item.name}</Text>
-        <Text style={styles.message}>{item.message}</Text>
+        <Text style={styles.hospitalName}>{item.replacement.establishmentName}</Text>
+        <Text style={styles.message}>{item.lastMessage.content}</Text>
         <Text style={styles.dateTime}>
-          {item.date} - {item.time} - {item.day}
+          {formatDate(item.lastMessage.timestamp)} - {item.replacement.startTime} à {item.replacement.endTime}
         </Text>
       </View>
     </TouchableOpacity>
@@ -219,10 +263,9 @@ export const ConversationsScreen = () => {
           contentContainerStyle={styles.tabsContentContainer}
           style={styles.tabsContainer}
         >
-          {renderTab("Tous", "all")}
-          {renderTab("Acceptées", "accepted")}
-          {renderTab("En attente", "pending")}
-          {renderTab("Refusées", "refused")}
+          {renderTab("En cours", "active")}
+          {renderTab("Terminés", "closed")}
+          {renderTab("Annulés", "cancelled")}
         </ScrollView>
       )}
 
@@ -312,11 +355,13 @@ const styles = StyleSheet.create({
     position: "relative",
     marginRight: 15,
   },
-  avatar: {
+  avatarPlaceholder: {
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusDot: {
     position: "absolute",

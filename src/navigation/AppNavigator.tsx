@@ -15,9 +15,11 @@ import { ProfileScreen } from "../screens/main/ProfileScreen";
 import { SearchScreen } from "../screens/main/SearchScreen";
 import { OnboardingScreen } from "../screens/onboarding/OnboardingScreen";
 import { AuthStackParamList, MainStackParamList } from "../types/navigation";
+import { ConversationScreen } from "../screens/main/ConversationScreen";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MainTab = createBottomTabNavigator<MainStackParamList>();
+const ConversationsStack = createNativeStackNavigator();
 
 const AuthNavigator = () => {
   return (
@@ -25,6 +27,36 @@ const AuthNavigator = () => {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
     </AuthStack.Navigator>
+  );
+};
+
+const ConversationsNavigator = () => {
+  return (
+    <ConversationsStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        presentation: 'modal',
+        animation: 'slide_from_right',
+        contentStyle: { backgroundColor: 'white' },
+      }}
+    >
+      <ConversationsStack.Screen 
+        name="ConversationsList" 
+        component={ConversationsScreen}
+        options={{ headerShown: false }}
+      />
+      <ConversationsStack.Screen 
+        name="Conversation"
+        component={ConversationScreen}
+        options={{
+          headerShown: false,
+          contentStyle: { backgroundColor: 'white' },
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          fullScreenGestureEnabled: true,
+        }}
+      />
+    </ConversationsStack.Navigator>
   );
 };
 
@@ -41,7 +73,7 @@ const MainNavigator = () => {
       <MainTab.Screen name="Home" component={HomeScreen} />
       <MainTab.Screen name="Calendar" component={CalendarScreen} />
       <MainTab.Screen name="Search" component={SearchScreen} />
-      <MainTab.Screen name="Conversations" component={ConversationsScreen} />
+      <MainTab.Screen name="Conversations" component={ConversationsNavigator} />
       <MainTab.Screen name="Profile" component={ProfileScreen} />
     </MainTab.Navigator>
   );

@@ -9,12 +9,11 @@ import { DateSearch } from './steps/DateSearch';
 import { SpecialtySearch } from './steps/SpecialtySearch';
 import { Specialty } from '../../types/search';
 import { SearchResult } from '../../types/search';
-import { searchReplacements } from '../../api/backend';
-import { useAuth } from '../../contexts/AuthContext';
 import { useUserData } from '../../hooks/useUserData';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db, auth } from '../../config/firebase';
 import { format } from 'date-fns';
+import { BACKEND_URL } from '@env';
 
 type Step = 'location' | 'date' | 'specialty';
 
@@ -22,6 +21,14 @@ interface SearchState {
   selectedEstablishmentIds: string[];
   selectedDates: { startDate: string; endDate: string } | null;
   selectedSpecialtyIds: string[];
+}
+
+interface SearchParams {
+  professionId: string;
+  establishmentIds: string[];
+  specialtyIds?: string[];
+  startDate?: string;
+  endDate?: string;
 }
 
 export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> = ({ visible, onClose }) => {
@@ -78,29 +85,6 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
     if (visible) fetchData();
   }, [visible, userData?.professionId]);
 
-  const handleSearch = async () => {
-    if (!userData?.professionId || !searchState.selectedEstablishmentIds.length) return;
-    
-    try {
-      const params = {
-        professionId: userData.professionId,
-        establishmentIds: searchState.selectedEstablishmentIds,
-        specialtyIds: searchState.selectedSpecialtyIds.length ? searchState.selectedSpecialtyIds : [],
-        startDate: searchState.selectedDates?.startDate ?? format(new Date(), 'yyyy-MM-dd'),
-        endDate: searchState.selectedDates?.endDate ?? format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-      };
-
-      const results = await searchReplacements(params);
-      console.log('Search results:', results);
-    } catch (error) {
-      console.error('Error searching:', error);
-    }
-  };
-
-  const canSearch = () => {
-    return searchState.selectedEstablishmentIds.length > 0;
-  };
-
   const handleNextStep = () => {
     switch (activeStep) {
       case 'location':
@@ -108,9 +92,6 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
         break;
       case 'date':
         setActiveStep('specialty');
-        break;
-      case 'specialty':
-        handleSearch();
         break;
     }
   };
@@ -128,6 +109,88 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
     }
   };
 
+  const handleSearch = async () => {
+    if (!userData?.professionId || !searchState.selectedEstablishmentIds.length) {
+      console.warn('Search aborted:', { 
+        hasProfessionId: !!userData?.professionId,
+        professionId: userData?.professionId,
+        hasEstablishments: searchState.selectedEstablishmentIds.length > 0 
+      });
+      return;
+    }
+
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('No auth token available');
+
+      // Construction des paramètres de base
+      const searchParams: SearchParams = {
+        professionId: userData.professionId,
+        establishmentIds: searchState.selectedEstablishmentIds,
+      };
+
+      // Ajout des spécialités si sélectionnées
+      if (searchState.selectedSpecialtyIds.length > 0) {
+        searchParams.specialtyIds = searchState.selectedSpecialtyIds;
+      }
+
+      // Ajout des dates uniquement si sélectionnées
+      if (searchState.selectedDates) {
+        searchParams.startDate = searchState.selectedDates.startDate;
+        searchParams.endDate = searchState.selectedDates.endDate;
+      }
+
+      // Log des données de recherche
+      console.log('Recherche avec les paramètres suivants:', {
+        établissements: searchState.selectedEstablishmentIds,
+        ...(searchState.selectedDates && { dates: searchState.selectedDates }),
+        ...(searchState.selectedSpecialtyIds.length > 0 && { spécialités: searchState.selectedSpecialtyIds })
+      });
+
+      // Appel à votre route
+      const response = await fetch(`${BACKEND_URL}/search_replacements`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(searchParams)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('Erreur lors de la recherche:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
+        throw new Error(`Échec de la recherche: ${response.status} ${response.statusText}`);
+      }
+
+      const results = await response.json();
+      
+      // Affichage des résultats avec emoticon
+      const count = Array.isArray(results) ? results.length : 0;
+      let emoji = '🤔';
+      if (count === 0) {
+        emoji = '😕';
+      } else if (count < 5) {
+        emoji = '👍';
+      } else if (count < 10) {
+        emoji = '🎉';
+      } else {
+        emoji = '🚀';
+      }
+      
+      console.log(`${emoji} ${count} remplacement${count > 1 ? 's' : ''} trouvé${count > 1 ? 's' : ''} !`);
+      console.log('Résultats détaillés:', results);
+      
+      onClose();
+    } catch (error) {
+      console.error('Erreur lors de la recherche:', error);
+    }
+  };
+
   if (!visible) return null;
   if (loading) return <ActivityIndicator />;
 
@@ -142,6 +205,7 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
         <TouchableOpacity 
           style={[styles.stepContainer, activeStep !== 'location' && styles.stepContainerCompact]} 
           onPress={() => setActiveStep('location')}
+          activeOpacity={1}
         >
           <View style={styles.stepHeader}>
             <Text style={styles.stepTitle}>Établissements</Text>
@@ -177,6 +241,7 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
         <TouchableOpacity 
           style={[styles.stepContainer, activeStep !== 'date' && styles.stepContainerCompact]}
           onPress={() => setActiveStep('date')}
+          activeOpacity={1}
         >
           <View style={styles.stepHeader}>
             <Text style={styles.stepTitle}>Dates</Text>
@@ -210,6 +275,7 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
         <TouchableOpacity 
           style={[styles.stepContainer, activeStep !== 'specialty' && styles.stepContainerCompact]}
           onPress={() => setActiveStep('specialty')}
+          activeOpacity={1}
         >
           <View style={styles.stepHeader}>
             <Text style={styles.stepTitle}>Spécialités</Text>
@@ -230,11 +296,11 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
               <View style={styles.stepFooter}>
                 <TouchableOpacity
                   style={[styles.nextButton, !canProceed() && styles.nextButtonDisabled]}
-                  onPress={handleNextStep}
+                  onPress={onClose}
                   disabled={!canProceed()}
                 >
                   <Text style={[styles.nextButtonText, !canProceed() && styles.nextButtonTextDisabled]}>
-                    Rechercher
+                    Terminer
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -245,27 +311,52 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
 
       <View style={[styles.globalFooter, { paddingBottom: insets.bottom }]}>
         <View style={styles.globalFooterContent}>
-          <TouchableOpacity
-            style={[
-              styles.searchButton,
-              !canSearch() && styles.searchButtonDisabled
-            ]}
-            onPress={handleSearch}
-            disabled={!canSearch()}
-          >
-            <Text style={[
-              styles.searchButtonText,
-              !canSearch() && styles.searchButtonTextDisabled
-            ]}>
-              Rechercher {canSearch() ? 
-                `(${searchState.selectedEstablishmentIds.length} établissement${searchState.selectedEstablishmentIds.length > 1 ? 's' : ''}${
-                  searchState.selectedSpecialtyIds.length ? `, ${searchState.selectedSpecialtyIds.length} spécialité${searchState.selectedSpecialtyIds.length > 1 ? 's' : ''}` : ''
-                }${
-                  searchState.selectedDates ? `, du ${format(new Date(searchState.selectedDates.startDate), 'dd/MM')} au ${format(new Date(searchState.selectedDates.endDate), 'dd/MM')}` : ''
-                })` 
-                : ''}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.globalFooterRow}>
+            <TouchableOpacity
+              style={[
+                styles.searchButton,
+                !searchState.selectedEstablishmentIds.length && styles.searchButtonDisabled
+              ]}
+              onPress={handleSearch}
+              disabled={!searchState.selectedEstablishmentIds.length}
+            >
+              <Text style={[
+                styles.searchButtonText,
+                !searchState.selectedEstablishmentIds.length && styles.searchButtonTextDisabled
+              ]}>
+                Rechercher
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.resetButton,
+                (!searchState.selectedEstablishmentIds.length && 
+                 !searchState.selectedDates && 
+                 !searchState.selectedSpecialtyIds.length) && styles.resetButtonDisabled
+              ]}
+              onPress={() => {
+                setSearchState({
+                  selectedEstablishmentIds: [],
+                  selectedDates: null,
+                  selectedSpecialtyIds: [],
+                });
+              }}
+              disabled={!searchState.selectedEstablishmentIds.length && 
+                       !searchState.selectedDates && 
+                       !searchState.selectedSpecialtyIds.length}
+            >
+              <MaterialIcons 
+                name="refresh" 
+                size={24} 
+                color={(!searchState.selectedEstablishmentIds.length && 
+                       !searchState.selectedDates && 
+                       !searchState.selectedSpecialtyIds.length) 
+                  ? theme.colors.gray[400] 
+                  : theme.colors.primary} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </View>
@@ -280,21 +371,6 @@ const styles = StyleSheet.create({
   backdrop: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
-  contentWrapper: {
-    flex: 1,
-    position: 'relative',
-  },
-  closeButton: {
-    position: 'absolute',
-    right: theme.spacing.lg,
-    zIndex: 2,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
     marginTop: theme.spacing.xl * 2,
@@ -302,38 +378,16 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     zIndex: 1,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  closeButton: {
+    position: 'absolute',
+    right: theme.spacing.lg,
+    zIndex: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.gray[200],
-    backgroundColor: theme.colors.white,
-  },
-  resetButton: {
-    color: theme.colors.gray[500],
-    fontSize: 16,
-    textDecorationLine: 'underline',
-  },
-  searchButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.borderRadius.md,
-    alignItems: 'center',
-  },
-  searchButtonDisabled: {
-    backgroundColor: theme.colors.gray[300],
-  },
-  searchButtonText: {
-    color: theme.colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  searchButtonTextDisabled: {
-    color: theme.colors.gray[500],
   },
   stepContainer: {
     backgroundColor: theme.colors.white,
@@ -359,10 +413,6 @@ const styles = StyleSheet.create({
   stepSummary: {
     fontSize: 13,
     color: theme.colors.text.secondary,
-  },
-  stepContent: {
-    maxHeight: 400,
-    paddingHorizontal: theme.spacing.md,
   },
   stepFooter: {
     padding: theme.spacing.md,
@@ -403,8 +453,44 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+    zIndex: 10,
   },
   globalFooterContent: {
     padding: theme.spacing.md,
+  },
+  globalFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  searchButton: {
+    flex: 1,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+  },
+  searchButtonDisabled: {
+    backgroundColor: theme.colors.gray[300],
+  },
+  searchButtonText: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  searchButtonTextDisabled: {
+    color: theme.colors.gray[500],
+  },
+  resetButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${theme.colors.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resetButtonDisabled: {
+    backgroundColor: theme.colors.gray[200],
   },
 }); 
