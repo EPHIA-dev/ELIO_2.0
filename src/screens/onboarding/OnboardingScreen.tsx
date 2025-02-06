@@ -28,7 +28,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
     try {
       if (step === 3 && user) {
         const token = await user.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/update_user_profile`, {
+        const response = await fetch(`${BACKEND_URL}/update_user`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
