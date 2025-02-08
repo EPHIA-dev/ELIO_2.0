@@ -11,9 +11,9 @@ import { Specialty } from '../../types/search';
 import { SearchResult } from '../../types/search';
 import { useUserData } from '../../hooks/useUserData';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db, auth } from '../../config/firebase';
+import { db } from '../../config/firebase';
 import { format } from 'date-fns';
-import { BACKEND_URL } from '@env';
+import { api } from '../../config/api';
 
 type Step = 'location' | 'date' | 'specialty';
 
@@ -111,7 +111,7 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
 
   const handleSearch = async () => {
     if (!userData?.professionId || !searchState.selectedEstablishmentIds.length) {
-      console.warn('Search aborted:', { 
+      console.warn('🚫 Search aborted:', { 
         hasProfessionId: !!userData?.professionId,
         professionId: userData?.professionId,
         hasEstablishments: searchState.selectedEstablishmentIds.length > 0 
@@ -120,74 +120,40 @@ export const SearchOverlay: React.FC<{ visible: boolean; onClose: () => void }> 
     }
 
     try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('No auth token available');
-
       // Construction des paramètres de base
-      const searchParams: SearchParams = {
+      const searchParams = {
         professionId: userData.professionId,
         establishmentIds: searchState.selectedEstablishmentIds,
+        ...(searchState.selectedSpecialtyIds.length > 0 && {
+          specialtyIds: searchState.selectedSpecialtyIds
+        }),
+        ...(searchState.selectedDates && {
+          startDate: searchState.selectedDates.startDate,
+          endDate: searchState.selectedDates.endDate
+        })
       };
 
-      // Ajout des spécialités si sélectionnées
-      if (searchState.selectedSpecialtyIds.length > 0) {
-        searchParams.specialtyIds = searchState.selectedSpecialtyIds;
-      }
-
-      // Ajout des dates uniquement si sélectionnées
-      if (searchState.selectedDates) {
-        searchParams.startDate = searchState.selectedDates.startDate;
-        searchParams.endDate = searchState.selectedDates.endDate;
-      }
-
-      // Log des données de recherche
-      console.log('Recherche avec les paramètres suivants:', {
-        établissements: searchState.selectedEstablishmentIds,
-        ...(searchState.selectedDates && { dates: searchState.selectedDates }),
-        ...(searchState.selectedSpecialtyIds.length > 0 && { spécialités: searchState.selectedSpecialtyIds })
-      });
-
-      // Appel à votre route
-      const response = await fetch(`${BACKEND_URL}/search_replacements`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(searchParams)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('Erreur lors de la recherche:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        });
-        throw new Error(`Échec de la recherche: ${response.status} ${response.statusText}`);
-      }
-
-      const results = await response.json();
+      console.log('🔍 Lancement de la recherche avec:', searchParams);
+      const results = await api.searchReplacements(searchParams);
       
       // Affichage des résultats avec emoticon
       const count = Array.isArray(results) ? results.length : 0;
       let emoji = '🤔';
-      if (count === 0) {
-        emoji = '😕';
-      } else if (count < 5) {
-        emoji = '👍';
-      } else if (count < 10) {
-        emoji = '🎉';
-      } else {
-        emoji = '🚀';
-      }
+      if (count === 0) emoji = '😕';
+      else if (count < 5) emoji = '👍';
+      else if (count < 10) emoji = '🎉';
+      else emoji = '🚀';
       
       console.log(`${emoji} ${count} remplacement${count > 1 ? 's' : ''} trouvé${count > 1 ? 's' : ''} !`);
-      console.log('Résultats détaillés:', results);
+      console.log('📊 Résultats:', JSON.stringify(results, null, 2));
       
       onClose();
     } catch (error) {
-      console.error('Erreur lors de la recherche:', error);
+      console.error('💥 Erreur critique:', error);
+      if (error instanceof Error) {
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+      }
     }
   };
 

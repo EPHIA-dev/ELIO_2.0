@@ -7,6 +7,7 @@ import { theme } from "../../styles/theme";
 import { useAuth } from '../../contexts/AuthContext';
 import { BACKEND_URL } from '@env';
 import ElioLogo from '../../../assets/logo/elio_logo_white.svg';
+import { api } from '../../config/api';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -28,26 +29,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   const handleNext = async () => {
     try {
       if (step === 3 && user) {
-        const token = await user.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/update_user/${user.uid}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            professionId,
-            specialtyIds,
-            firstName: personalInfo.firstName,
-            lastName: personalInfo.lastName,
-            birthDate: personalInfo.birthDate,
-            isProfileComplete: true
-          })
+        await api.updateUser(user.uid, {
+          professionId,
+          specialtyIds,
+          firstName: personalInfo.firstName,
+          lastName: personalInfo.lastName,
+          birthDate: personalInfo.birthDate,
+          isProfileComplete: true
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to update profile');
-        }
 
         onComplete();
       } else {

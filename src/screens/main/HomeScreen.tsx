@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -9,6 +9,7 @@ import {
 import { theme } from "../../styles/theme";
 import { HomeHeader } from "./components/HomeHeader";
 import { SearchCard } from "./components/SearchCard";
+import { pingServer } from '../../config/api';
 
 export const HomeScreen = () => {
   const [refreshing, setRefreshing] = React.useState(false);
@@ -17,12 +18,25 @@ export const HomeScreen = () => {
     setRefreshing(true);
     setTimeout(() => {
       setRefreshing(false);
-    }, 1000);
+    }, 2000);
   }, []);
 
   const handleSearchPress = () => {
     // Navigation vers la recherche
   };
+
+  // Garde le ping en arrière-plan pour le debug
+  useEffect(() => {
+    const checkServer = async () => {
+      try {
+        await pingServer();
+      } catch (error) {
+        console.error('❌ Erreur de connexion au serveur:', error);
+      }
+    };
+
+    checkServer();
+  }, []);
 
   return (
     <View style={styles.mainContainer}>
@@ -210,5 +224,14 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: 14,
     fontWeight: "500",
+  },
+  statusBanner: {
+    padding: 10,
+    width: '100%',
+  },
+  statusText: {
+    color: theme.colors.white,
+    textAlign: 'center',
+    fontSize: 14,
   },
 });

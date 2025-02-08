@@ -24,6 +24,7 @@ import { fr } from 'date-fns/locale';
 import { Message, TextMessage, MissionMessage, NotificationMessage } from '../../types/messages';
 import { BACKEND_URL } from '@env';
 import { auth } from '../../config/firebase';
+import { api } from '../../config/api';
 
 export const ConversationScreen = () => {
   const route = useRoute();
@@ -74,38 +75,17 @@ export const ConversationScreen = () => {
     if (!newMessage.trim() || !userData?.uid || !route.params?.conversationId) return;
 
     try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('No auth token available');
-
       const messageData = {
         type: 'user',
         content: newMessage.trim(),
         conversationId: route.params.conversationId,
       };
 
-      const response = await fetch(`${BACKEND_URL}/send_message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(messageData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error sending message:', errorData);
-        throw new Error(errorData.error || 'Failed to send message');
-      }
-
-      // Réinitialiser le champ de message
+      await api.sendMessage(messageData);
       setNewMessage('');
-      
-      // Scroll vers le bas après l'envoi
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error) {
       console.error('Error sending message:', error);
-      // Ici vous pourriez ajouter une notification d'erreur pour l'utilisateur
       Alert.alert(
         'Erreur',
         'Impossible d\'envoyer le message. Veuillez réessayer.',
@@ -153,24 +133,7 @@ export const ConversationScreen = () => {
   const handleDeleteMessage = async (message: Message) => {
     try {
       setDeletingMessageIds(prev => [...prev, message.id]);
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('No auth token available');
-
-      const response = await fetch(
-        `${BACKEND_URL}/delete_message/${route.params?.conversationId}/${message.id}`, 
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete message');
-      }
-
+      await api.deleteMessage(route.params?.conversationId, message.id);
       console.log('✅ Message supprimé avec succès');
     } catch (error) {
       console.error('Error deleting message:', error);
