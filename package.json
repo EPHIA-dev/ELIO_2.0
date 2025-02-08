@@ -25,6 +25,7 @@
     "expo-blur": "~14.0.3",
     "expo-location": "~18.0.5",
     "expo-status-bar": "~2.0.1",
+    "expo-updates": "~0.26.16",
     "firebase": "^11.2.0",
     "react": "18.3.1",
     "react-native": "0.76.6",
@@ -38,7 +39,7 @@
     "react-native-svg": "^15.11.1",
     "react-native-svg-transformer": "^1.5.0",
     "react-native-vector-icons": "^10.2.0",
-    "expo-updates": "~0.26.16"
+    "react-native-wheely": "^0.6.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -1,0 +1,45 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main  # ou master, selon votre branche principale
+    paths:
+      - 'backend/**'  # Déclenche uniquement lors des modifications dans le dossier backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run tests
+      working-directory: ./backend
+      run: |
+        # Ajoutez vos commandes de test ici
+        # pytest  # Décommentez si vous utilisez pytest
+        
+    - name: Deploy to production
+      env:
+        FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+      run: |
+        # Ajoutez ici vos commandes de déploiement
+        # Par exemple, pour déployer sur Heroku :
+        # - name: Deploy to Heroku
+        #   uses: akhileshns/heroku-deploy@v3.12.12
+        #   with:
+        #     heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        #     heroku_app_name: "votre-app-name"
+        #     heroku_email: "votre-email@example.com" 

@@ -6,6 +6,7 @@ import { SpecialtiesStep } from "../../components/onboarding/SpecialtiesStep";
 import { theme } from "../../styles/theme";
 import { useAuth } from '../../contexts/AuthContext';
 import { BACKEND_URL } from '@env';
+import ElioLogo from '../../../assets/logo/elio_logo_white.svg';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -28,8 +29,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
     try {
       if (step === 3 && user) {
         const token = await user.getIdToken();
-        const response = await fetch(`${BACKEND_URL}/update_user`, {
-          method: 'POST',
+        const response = await fetch(`${BACKEND_URL}/update_user/${user.uid}`, {
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -37,7 +38,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
           body: JSON.stringify({
             professionId,
             specialtyIds,
-            ...personalInfo,
+            firstName: personalInfo.firstName,
+            lastName: personalInfo.lastName,
+            birthDate: personalInfo.birthDate,
             isProfileComplete: true
           })
         });
@@ -108,48 +111,54 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>
-          {step === 1
-            ? "Votre profession"
-            : step === 2
-            ? "Vos spécialités"
-            : "Vos informations"}
-        </Text>
-        <Text style={styles.subtitle}>
-          {step === 1
-            ? "Sélectionnez votre profession principale"
-            : step === 2
-            ? "Sélectionnez vos spécialités"
-            : "Complétez vos informations personnelles"}
-        </Text>
+      <View style={styles.logoContainer}>
+        <ElioLogo width={180} height={180} />
       </View>
 
-      <View style={styles.content}>{renderStep()}</View>
-
-      <View style={styles.footer}>
-        {step > 1 && (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => setStep(step - 1)}
-          >
-            <Text style={styles.backButtonText}>Retour</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={[styles.nextButton, !canProceed() && styles.nextButtonDisabled]}
-          onPress={handleNext}
-          disabled={!canProceed()}
-        >
-          <Text
-            style={[
-              styles.nextButtonText,
-              !canProceed() && styles.nextButtonTextDisabled,
-            ]}
-          >
-            {step === 3 ? "Terminer" : "Suivant"}
+      <View style={styles.formContainer}>
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {step === 1
+              ? "Votre profession"
+              : step === 2
+              ? "Vos spécialités"
+              : "Vos informations"}
           </Text>
-        </TouchableOpacity>
+          <Text style={styles.subtitle}>
+            {step === 1
+              ? "Sélectionnez votre profession principale"
+              : step === 2
+              ? "Sélectionnez vos spécialités"
+              : "Complétez vos informations personnelles"}
+          </Text>
+        </View>
+
+        <View style={styles.content}>{renderStep()}</View>
+
+        <View style={styles.footer}>
+          {step > 1 && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setStep(step - 1)}
+            >
+              <Text style={styles.backButtonText}>Retour</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.nextButton, !canProceed() && styles.nextButtonDisabled]}
+            onPress={handleNext}
+            disabled={!canProceed()}
+          >
+            <Text
+              style={[
+                styles.nextButtonText,
+                !canProceed() && styles.nextButtonTextDisabled,
+              ]}
+            >
+              {step === 3 ? "Terminer" : "Suivant"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -158,7 +167,27 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.primary,
+  },
+  logoContainer: {
+    flex: 0.4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+  },
+  formContainer: {
+    flex: 0.6,
     backgroundColor: theme.colors.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   header: {
     padding: theme.spacing.lg,
