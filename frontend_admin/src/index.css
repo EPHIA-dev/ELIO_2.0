@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+
+    color-scheme: light;
+    background-color: theme('colors.base-200');
+    color: theme('colors.base-content');
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html, body, #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply m-0 min-h-screen;
+  }
+
+  #root {
+    @apply flex flex-col min-h-screen;
+  }
+}
+
+@layer components {
+  /* Layout */
+  .page-container {
+    @apply min-h-screen bg-base-200;
+  }
+
+  .page-content {
+    @apply p-6 space-y-6;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-base-100 shadow-xl;
+  }
+
+  /* Forms */
+  .form-group {
+    @apply space-y-2;
+  }
+
+  .form-label {
+    @apply text-sm font-medium;
+  }
+
+  /* Tables */
+  .table-wrapper {
+    @apply overflow-x-auto bg-base-100 rounded-lg shadow;
+  }
+
+  .table {
+    @apply w-full;
+  }
+
+  .table th {
+    @apply bg-base-200;
+  }
+
+  /* Drawer */
+  .drawer-side {
+    @apply min-h-screen bg-base-100;
+  }
+
+  .drawer-content {
+    @apply flex flex-col min-h-screen;
+  }
+
+  /* Menu */
+  .menu-title {
+    @apply px-4 py-2 text-lg font-semibold;
+  }
+
+  .menu-item {
+    @apply flex items-center gap-2 px-4 py-2 hover:bg-base-200 rounded-lg;
+  }
+
+  .menu-item.active {
+    @apply bg-primary text-primary-content;
+  }
+}
+
+/* Styles pour le layout principal */
+.drawer-content {
+  @apply min-h-screen;
+}
+
+/* Styles pour les formulaires */
+.form-control {
+  @apply w-full;
+}
+
+.form-control .label {
+  @apply py-2;
+}
+
+.form-control .input,
+.form-control .select,
+.form-control .textarea {
+  @apply w-full;
+}
+
+/* Styles pour les tableaux */
+.table-container {
+  @apply overflow-x-auto w-full;
+}
+
+/* Styles pour les modales */
+.modal-box {
+  @apply max-w-2xl;
+}
+
+/* Styles pour les cartes */
+.card-body {
+  @apply p-6;
+}
+
+/* Styles pour la navigation */
+.drawer-side .menu {
+  @apply p-4 w-80 min-h-full;
+}

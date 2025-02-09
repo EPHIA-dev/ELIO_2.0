@@ -4,7 +4,8 @@ import os
 
 # Obtenir le chemin absolu du fichier de credentials
 current_dir = os.path.dirname(os.path.abspath(__file__))
-cred_path = os.path.join(current_dir, "admin.json")
+cred_path = os.path.join(current_dir, "firebase.json")
+
 
 try:
     # Vérifier si Firebase est déjà initialisé
