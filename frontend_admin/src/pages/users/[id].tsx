@@ -6,7 +6,6 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { Modal } from '../../components/common/Modal';
-import { Table } from '../../components/common/Table';
 import { FiArrowLeft, FiEdit2, FiTrash2, FiKey } from 'react-icons/fi';
 import { sendPasswordResetEmail, updatePassword, getAuth } from '@firebase/auth';
 

@@ -104,4 +104,54 @@ export type Permission =
   | 'replacements.delete';
 
 // Types pour les thèmes
-export type Theme = 'light' | 'dark'; 
+export type Theme = 'light' | 'dark';
+
+export interface Establishment {
+  id: string;
+  name: string;
+  address: string;
+  description: string;
+  professionIds: string[];
+  doctorIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Replacement {
+  id: string;
+  title: string;
+  description: string;
+  establishmentId: string;
+  professionId: string;
+  doctorId?: string;
+  startDate: Date;
+  endDate: Date;
+  status: 'open' | 'closed' | 'cancelled';
+  urgency: 'normal' | 'high';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Conversation {
+  id: string;
+  lastMessage: string;
+  lastActivity: Date;
+  status: 'active' | 'archived';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface User {
+  id: string;
+  uid?: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  photoURL?: string;
+  status: 'active' | 'inactive' | 'banned' | 'pending';
+  role: 'admin' | 'doctor' | 'establishment';
+  isProfileComplete: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+} 

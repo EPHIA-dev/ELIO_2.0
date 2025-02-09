@@ -1,34 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReplacements } from '../../hooks/useReplacements';
-import { useEstablishments } from '../../hooks/useEstablishments';
-import { useProfessions } from '../../hooks/useProfessions';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { FiPlus, FiFilter } from 'react-icons/fi';
+import { Replacement } from '../../types';
 import { Table } from '../../components/common/Table';
-
-interface Replacement {
-  id: string;
-  title: string;
-  description: string;
-  establishmentId: string;
-  professionId: string;
-  specialtyId: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'open' | 'closed' | 'cancelled';
-  urgency: 'normal' | 'high';
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { format } from 'date-fns';
+import { FiFilter, FiPlus } from 'react-icons/fi';
 
 const ReplacementsPage = () => {
   const navigate = useNavigate();
   const { replacements, loading, error } = useReplacements();
-  const { establishments } = useEstablishments();
-  const { professions } = useProfessions();
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
@@ -43,8 +23,8 @@ const ReplacementsPage = () => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
         replacement.title.toLowerCase().includes(searchLower) ||
-        establishments.find(e => e.id === replacement.establishmentId)?.name.toLowerCase().includes(searchLower) ||
-        professions.find(p => p.id === replacement.professionId)?.name.toLowerCase().includes(searchLower);
+        replacement.establishmentId.toLowerCase().includes(searchLower) ||
+        replacement.professionId.toLowerCase().includes(searchLower);
       
       if (!matchesSearch) return false;
     }
@@ -72,7 +52,7 @@ const ReplacementsPage = () => {
       header: 'Établissement',
       accessor: (replacement: Replacement) => (
         <div className="badge badge-outline">
-          {establishments.find(e => e.id === replacement.establishmentId)?.name || replacement.establishmentId}
+          {replacement.establishmentId}
         </div>
       ),
     },
@@ -80,7 +60,7 @@ const ReplacementsPage = () => {
       header: 'Profession',
       accessor: (replacement: Replacement) => (
         <div className="badge badge-outline">
-          {professions.find(p => p.id === replacement.professionId)?.name || replacement.professionId}
+          {replacement.professionId}
         </div>
       ),
     },
@@ -207,9 +187,9 @@ const ReplacementsPage = () => {
                           onChange={(e) => setFilters(prev => ({ ...prev, establishmentId: e.target.value }))}
                         >
                           <option value="">Tous les établissements</option>
-                          {establishments.map((establishment) => (
-                            <option key={establishment.id} value={establishment.id}>
-                              {establishment.name}
+                          {replacements.map((replacement) => (
+                            <option key={replacement.establishmentId} value={replacement.establishmentId}>
+                              {replacement.establishmentId}
                             </option>
                           ))}
                         </select>

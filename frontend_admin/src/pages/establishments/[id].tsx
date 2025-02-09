@@ -8,45 +8,14 @@ import { fr } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { Modal } from '../../components/common/Modal';
 import { Table } from '../../components/common/Table';
-import { FiArrowLeft, FiEdit2, FiTrash2, FiCalendar, FiPlus, FiUser } from 'react-icons/fi';
-
-interface Establishment {
-  id: string;
-  name: string;
-  address: string;
-  description: string;
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
-  professionIds: string[];
-  doctorIds: string[];
-  image?: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { FiArrowLeft, FiEdit2, FiTrash2, FiPlus, FiUser } from 'react-icons/fi';
+import { Establishment, Replacement } from '../../types';
 
 interface EditForm {
   name: string;
   address: string;
   description: string;
   professionIds: string[];
-}
-
-interface Replacement {
-  id: string;
-  title: string;
-  description: string;
-  establishmentId: string;
-  professionId: string;
-  specialtyId: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'open' | 'closed' | 'cancelled';
-  urgency: 'normal' | 'high';
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 const EstablishmentDetailsPage = () => {
@@ -87,7 +56,7 @@ const EstablishmentDetailsPage = () => {
             description: establishmentData.description,
             professionIds: establishmentData.professionIds || [],
           });
-          setReplacements(replacementsData);
+          setReplacements(replacementsData as Replacement[]);
         }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);

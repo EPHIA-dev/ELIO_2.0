@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useEstablishments, Establishment } from '../../hooks/useEstablishments';
-import { useProfessions } from '../../hooks/useProfessions';
+import { useEstablishments } from '../../hooks/useEstablishments';
+import { Establishment } from '../../types';
 import { Table } from '../../components/common/Table';
-import { Modal } from '../../components/common/Modal';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { FiEye, FiTrash2, FiPlus, FiFilter } from 'react-icons/fi';
+import { FiPlus, FiFilter } from 'react-icons/fi';
+import { Modal } from '../../components/common/Modal';
+import { useProfessions } from '../../hooks/useProfessions';
 
 const EstablishmentsPage = () => {
   const navigate = useNavigate();
+  const { establishments, loading, hasMore, loadMore, deleteEstablishment } = useEstablishments();
   const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const { establishments, loading, error, hasMore, loadEstablishments, deleteEstablishment } = useEstablishments();
   const { professions } = useProfessions();
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,12 +40,23 @@ const EstablishmentsPage = () => {
     return true;
   });
 
+  const handleLoadMore = async () => {
+    if (hasMore && !loading) {
+      await loadMore();
+    }
+  };
+
+  const handleRowClick = (establishment: Establishment) => {
+    navigate(`/establishments/${establishment.id}`);
+  };
+
   const handleDelete = async () => {
     if (!selectedEstablishment) return;
     try {
       await deleteEstablishment(selectedEstablishment.id);
       setIsDeleteModalOpen(false);
-      await loadEstablishments();
+      setSelectedEstablishment(null);
+      await loadMore();
     } catch (error) {
       console.error(error);
     }
@@ -82,12 +94,8 @@ const EstablishmentsPage = () => {
     },
   ];
 
-  if (error) {
-    return (
-      <div className="alert alert-error">
-        <span>Une erreur est survenue lors du chargement des établissements</span>
-      </div>
-    );
+  if (loading && establishments.length === 0) {
+    return <div>Chargement...</div>;
   }
 
   return (
@@ -182,16 +190,17 @@ const EstablishmentsPage = () => {
             columns={columns}
             isLoading={loading}
             emptyMessage="Aucun établissement trouvé"
-            onRowClick={(establishment) => navigate(`/establishments/${establishment.id}`)}
+            onRowClick={handleRowClick}
           />
 
           {hasMore && (
             <div className="flex justify-center mt-4">
               <button
                 className="btn btn-outline"
-                onClick={() => loadEstablishments(true)}
+                onClick={handleLoadMore}
+                disabled={loading}
               >
-                Charger plus
+                {loading ? 'Chargement...' : 'Charger plus'}
               </button>
             </div>
           )}

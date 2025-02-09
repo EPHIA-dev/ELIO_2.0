@@ -110,10 +110,8 @@ const ReplacementDetailsPage = () => {
       try {
         const conversationsData = await getReplacementConversations(id);
         // Tri des conversations par lastActivity décroissant
-        const sortedConversations = [...conversationsData].sort((a, b) => 
-          b.lastActivity.getTime() - a.lastActivity.getTime()
-        );
-        setConversations(sortedConversations);
+        const formattedConversations = formatConversations(conversationsData);
+        setConversations(formattedConversations);
       } catch (error) {
         console.error('Erreur lors du chargement des conversations:', error);
         toast.error('Erreur lors du chargement des conversations');
@@ -124,6 +122,18 @@ const ReplacementDetailsPage = () => {
       loadConversations();
     }
   }, [id, getReplacementConversations, loading]);
+
+  const formatConversations = (conversations: any[]): Conversation[] => {
+    return conversations.map(conv => ({
+      id: conv.id,
+      lastMessage: {
+        text: conv.lastMessage?.text || '',
+        timestamp: conv.lastMessage?.timestamp?.toDate() || new Date(),
+      },
+      status: conv.status || 'active',
+      lastActivity: conv.lastActivity?.toDate() || new Date(),
+    }));
+  };
 
   const handleOpenEditModal = () => {
     if (replacement) {

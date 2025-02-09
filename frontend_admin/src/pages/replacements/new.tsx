@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useEstablishments } from '../../hooks/useEstablishments';
 import { useProfessions } from '../../hooks/useProfessions';
 import { useSpecialties } from '../../hooks/useSpecialties';
-import { format, isValid, parseISO, startOfDay } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { isValid, parseISO, startOfDay, format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { FiArrowLeft } from 'react-icons/fi';
 import { addDoc, collection } from '@firebase/firestore';
@@ -24,21 +23,17 @@ interface NewReplacementForm {
 
 const NewReplacementPage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { establishments } = useEstablishments();
   const { professions } = useProfessions();
   const { specialties } = useSpecialties();
   const [loading, setLoading] = useState(false);
-
-  // Récupérer l'establishmentId depuis l'état de navigation
-  const preselectedEstablishmentId = location.state?.establishmentId;
 
   const [form, setForm] = useState<NewReplacementForm>({
     title: '',
     description: '',
     status: 'open',
     urgency: 'normal',
-    establishmentId: preselectedEstablishmentId || '',
+    establishmentId: '',
     professionId: '',
     specialtyId: '',
     startDate: startOfDay(new Date()),
@@ -213,30 +208,24 @@ const NewReplacementPage = () => {
             <label className="label">
               <span className="label-text">Établissement</span>
             </label>
-            {preselectedEstablishmentId ? (
-              <div className="input input-bordered flex items-center">
-                {establishments.find(e => e.id === preselectedEstablishmentId)?.name || 'Établissement non trouvé'}
-              </div>
-            ) : (
-              <select
-                className="select select-bordered"
-                value={form.establishmentId}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    establishmentId: e.target.value,
-                  }))
-                }
-                required
-              >
-                <option value="">Sélectionner un établissement</option>
-                {establishments.map((establishment) => (
-                  <option key={establishment.id} value={establishment.id}>
-                    {establishment.name}
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              className="select select-bordered"
+              value={form.establishmentId}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  establishmentId: e.target.value,
+                }))
+              }
+              required
+            >
+              <option value="">Sélectionner un établissement</option>
+              {establishments.map((establishment) => (
+                <option key={establishment.id} value={establishment.id}>
+                  {establishment.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-control">

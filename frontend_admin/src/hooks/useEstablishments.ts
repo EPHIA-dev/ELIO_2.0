@@ -15,34 +15,16 @@ import {
   serverTimestamp,
 } from '@firebase/firestore';
 import { db } from '../services/firebase';
+import { Establishment, Replacement } from '../types';
 
-export interface Establishment {
-  id: string;
-  name: string;
-  address: string;
-  description: string;
-  professionIds: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface UseEstablishmentsOptions {
-  pageSize?: number;
-  filters?: {
-    professionId?: string;
-  };
-}
-
-export const useEstablishments = (options: UseEstablishmentsOptions = {}) => {
+export const useEstablishments = () => {
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
-  const { pageSize = 10, filters } = options;
-
-  const loadEstablishments = async (isNextPage = false) => {
+  const loadMore = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -50,31 +32,28 @@ export const useEstablishments = (options: UseEstablishmentsOptions = {}) => {
       let q = query(
         collection(db, 'establishments'),
         orderBy('createdAt', 'desc'),
-        limit(pageSize)
+        limit(10)
       );
 
-      if (filters?.professionId) {
-        q = query(q, where('professionIds', 'array-contains', filters.professionId));
-      }
-
-      if (isNextPage && lastDoc) {
+      if (lastDoc) {
         q = query(q, startAfter(lastDoc));
       }
 
       const snapshot = await getDocs(q);
       const lastVisible = snapshot.docs[snapshot.docs.length - 1];
       setLastDoc(lastVisible);
-      setHasMore(snapshot.docs.length === pageSize);
+      setHasMore(snapshot.docs.length === 10);
 
       const establishmentsData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        doctorIds: doc.data().doctorIds || [],
         createdAt: doc.data().createdAt?.toDate(),
         updatedAt: doc.data().updatedAt?.toDate(),
       })) as Establishment[];
 
       setEstablishments((prev) =>
-        isNextPage ? [...prev, ...establishmentsData] : establishmentsData
+        lastDoc ? [...prev, ...establishmentsData] : establishmentsData
       );
     } catch (err) {
       console.error('Erreur lors du chargement des établissements:', err);
@@ -94,6 +73,7 @@ export const useEstablishments = (options: UseEstablishmentsOptions = {}) => {
         return {
           id: docSnap.id,
           ...data,
+          doctorIds: data.doctorIds || [],
           createdAt: data.createdAt?.toDate(),
           updatedAt: data.updatedAt?.toDate(),
         } as Establishment;
@@ -105,24 +85,22 @@ export const useEstablishments = (options: UseEstablishmentsOptions = {}) => {
     }
   };
 
-  const getEstablishmentReplacements = async (establishmentId: string) => {
+  const getEstablishmentReplacements = async (establishmentId: string): Promise<Replacement[]> => {
     try {
-      const snapshot = await getDocs(collection(db, 'replacements'));
+      const q = query(
+        collection(db, 'replacements'),
+        where('establishmentId', '==', establishmentId)
+      );
       
-      return snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          startDate: doc.data().startDate?.toDate(),
-          endDate: doc.data().endDate?.toDate(),
-          createdAt: doc.data().createdAt?.toDate(),
-          updatedAt: doc.data().updatedAt?.toDate(),
-        }))
-        .filter(doc => doc.establishmentId === establishmentId)
-        .sort((a, b) => {
-          if (!a.createdAt || !b.createdAt) return 0;
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        });
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        startDate: doc.data().startDate?.toDate(),
+        endDate: doc.data().endDate?.toDate(),
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate(),
+      })) as Replacement[];
     } catch (err) {
       console.error('Erreur lors du chargement des remplacements:', err);
       throw new Error('Erreur lors du chargement des remplacements');
@@ -154,19 +132,18 @@ export const useEstablishments = (options: UseEstablishmentsOptions = {}) => {
   };
 
   useEffect(() => {
-    loadEstablishments();
-  }, [filters?.professionId]);
+    loadMore();
+  }, []);
 
   return {
     establishments,
     loading,
     error,
     hasMore,
-    loadMore: () => loadEstablishments(true),
+    loadMore,
     getEstablishment,
     getEstablishmentReplacements,
     updateEstablishment,
     deleteEstablishment,
-    refresh: () => loadEstablishments(),
   };
 }; 

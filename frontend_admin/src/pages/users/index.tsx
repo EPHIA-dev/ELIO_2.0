@@ -3,30 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { Table } from '../../components/common/Table';
 import { Modal } from '../../components/common/Modal';
 import { useUsers } from '../../hooks/useUsers';
-import { UserFilters } from '../../types';
+import type { User } from '../../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { FiFilter } from 'react-icons/fi';
 
-const UsersPage = () => {
+export default function UsersPage() {
   const navigate = useNavigate();
-  const { users, loading, error } = useUsers();
+  const { users, loading, error, hasMore, loadMore, deleteUser } = useUsers();
   const [filters, setFilters] = useState({
     role: '',
-    status: '',
+    userStatus: '',
   });
-  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = (users as User[]).filter(user => {
     // Filtre par recherche textuelle
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
-        user.firstName.toLowerCase().includes(searchLower) ||
-        user.lastName.toLowerCase().includes(searchLower) ||
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchLower) ||
         user.email.toLowerCase().includes(searchLower);
       
       if (!matchesSearch) return false;
@@ -34,26 +34,38 @@ const UsersPage = () => {
 
     // Filtres avancés
     if (filters.role && user.role !== filters.role) return false;
-    if (filters.status && user.status !== filters.status) return false;
+    if (filters.userStatus && user.status !== filters.userStatus) return false;
     return true;
   });
 
-  const handleDelete = async () => {
-    if (!deleteUserId) return;
-    
-    try {
-      await deleteUser(deleteUserId);
-      toast.success('Utilisateur supprimé avec succès');
-      setDeleteUserId(null);
-    } catch (err) {
-      toast.error('Erreur lors de la suppression de l\'utilisateur');
+  const handleLoadMore = async () => {
+    if (hasMore && !loading) {
+      await loadMore();
     }
+  };
+
+  const handleDelete = async () => {
+    if (selectedUserId) {
+      try {
+        await deleteUser(selectedUserId);
+        setIsDeleteModalOpen(false);
+        setSelectedUserId(null);
+        toast.success('Utilisateur supprimé avec succès');
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+        toast.error('Erreur lors de la suppression de l\'utilisateur');
+      }
+    }
+  };
+
+  const handleRowClick = (user: User) => {
+    navigate(`/users/${user.id}`);
   };
 
   const columns = [
     {
       header: 'Nom',
-      accessor: (user: any) => (
+      accessor: (user: User) => (
         <div>
           <div className="font-bold">{`${user.firstName} ${user.lastName}`}</div>
           <div className="text-sm text-base-content/60">{user.email}</div>
@@ -62,31 +74,56 @@ const UsersPage = () => {
     },
     {
       header: 'Rôle',
-      accessor: (user: any) => (
+      accessor: (user: User) => (
         <div className="badge badge-outline">
-          {user.role === 'admin' ? 'Administrateur' : 'Utilisateur'}
+          {user.role === 'admin' ? 'Administrateur' : 
+           user.role === 'doctor' ? 'Médecin' : 'Établissement'}
         </div>
       ),
     },
     {
-      header: 'Profil',
-      accessor: (user: any) => (
-        <div className={`badge ${user.isProfileComplete ? 'badge-success' : 'badge-warning'}`}>
-          {user.isProfileComplete ? 'Complet' : 'Incomplet'}
+      header: 'Statut',
+      accessor: (user: User) => (
+        <div className={`badge ${
+          user.status === 'active' ? 'badge-success' :
+          user.status === 'inactive' ? 'badge-warning' :
+          user.status === 'banned' ? 'badge-error' : 'badge-neutral'
+        }`}>
+          {user.status === 'active' ? 'Actif' :
+           user.status === 'inactive' ? 'Inactif' :
+           user.status === 'banned' ? 'Banni' : 'En attente'}
         </div>
       ),
     },
     {
       header: 'Date d\'inscription',
-      accessor: (user: any) =>
+      accessor: (user: User) =>
         format(user.createdAt, 'dd MMMM yyyy', { locale: fr }),
     },
   ];
+
+  if (loading && users.length === 0) {
+    return <div>Chargement...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-error">
+        <span>Une erreur est survenue lors du chargement des utilisateurs</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Utilisateurs</h1>
+        <button
+          className="btn btn-primary"
+          onClick={() => navigate('/users/new')}
+        >
+          Ajouter un utilisateur
+        </button>
       </div>
 
       <div className="card bg-base-100 shadow-xl">
@@ -149,8 +186,8 @@ const UsersPage = () => {
                         </label>
                         <select
                           className="select select-bordered w-full"
-                          value={filters.status}
-                          onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                          value={filters.userStatus}
+                          onChange={(e) => setFilters(prev => ({ ...prev, userStatus: e.target.value }))}
                         >
                           <option value="">Tous les statuts</option>
                           <option value="active">Actif</option>
@@ -163,7 +200,7 @@ const UsersPage = () => {
                         <button
                           className="btn btn-ghost btn-block btn-sm"
                           onClick={() => {
-                            setFilters({ role: '', status: '' });
+                            setFilters({ role: '', userStatus: '' });
                             setIsFilterMenuOpen(false);
                           }}
                         >
@@ -182,39 +219,51 @@ const UsersPage = () => {
             columns={columns}
             isLoading={loading}
             emptyMessage="Aucun utilisateur trouvé"
-            onRowClick={(user) => navigate(`/users/${user.uid}`)}
+            onRowClick={handleRowClick}
           />
+
+          {hasMore && (
+            <div className="mt-4 text-center">
+              <button
+                className="btn btn-secondary"
+                onClick={handleLoadMore}
+                disabled={loading}
+              >
+                {loading ? 'Chargement...' : 'Charger plus'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <Modal
-        isOpen={!!deleteUserId}
-        onClose={() => setDeleteUserId(null)}
-        title="Supprimer l'utilisateur"
-        footer={
-          <>
-            <button
-              className="btn btn-ghost"
-              onClick={() => setDeleteUserId(null)}
-            >
-              Annuler
-            </button>
-            <button
-              className="btn btn-error"
-              onClick={handleDelete}
-            >
-              Supprimer
-            </button>
-          </>
-        }
-      >
-        <p>Êtes-vous sûr de vouloir supprimer cet utilisateur ?</p>
-        <p className="text-sm text-base-content/60 mt-2">
-          Cette action est irréversible.
-        </p>
-      </Modal>
+      {isDeleteModalOpen && (
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="Supprimer l'utilisateur"
+          footer={
+            <>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                Annuler
+              </button>
+              <button
+                className="btn btn-error"
+                onClick={handleDelete}
+              >
+                Supprimer
+              </button>
+            </>
+          }
+        >
+          <p>Êtes-vous sûr de vouloir supprimer cet utilisateur ?</p>
+          <p className="text-sm text-base-content/60 mt-2">
+            Cette action est irréversible.
+          </p>
+        </Modal>
+      )}
     </div>
   );
-};
-
-export default UsersPage; 
+} 

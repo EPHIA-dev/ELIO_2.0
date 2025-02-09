@@ -1,11 +1,11 @@
-import { ReactNode } from 'react';
+import React from 'react';
 
-interface Column<T> {
+export interface Column<T> {
   header: string;
-  accessor: keyof T | ((item: T) => ReactNode);
+  accessor: (item: T) => React.ReactNode;
 }
 
-interface TableProps<T> {
+export interface TableProps<T> {
   data: T[];
   columns: Column<T>[];
   onRowClick?: (item: T) => void;
@@ -13,16 +13,16 @@ interface TableProps<T> {
   emptyMessage?: string;
 }
 
-export const Table = <T extends object>({
+export function Table<T>({
   data,
   columns,
   onRowClick,
-  isLoading = false,
-  emptyMessage = 'Aucune donnée disponible'
-}: TableProps<T>) => {
+  isLoading,
+  emptyMessage = 'Aucune donnée',
+}: TableProps<T>) {
   if (isLoading) {
     return (
-      <div className="w-full flex justify-center p-8">
+      <div className="flex justify-center items-center p-4">
         <span className="loading loading-spinner loading-lg"></span>
       </div>
     );
@@ -30,21 +30,19 @@ export const Table = <T extends object>({
 
   if (!data.length) {
     return (
-      <div className="text-center p-8 bg-base-200 rounded-lg">
-        <p className="text-base-content/60">{emptyMessage}</p>
+      <div className="text-center p-4 text-base-content/60">
+        {emptyMessage}
       </div>
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="table table-zebra w-full">
+      <table className="table">
         <thead>
           <tr>
             {columns.map((column, index) => (
-              <th key={index} className="bg-base-200">
-                {column.header}
-              </th>
+              <th key={index}>{column.header}</th>
             ))}
           </tr>
         </thead>
@@ -56,11 +54,7 @@ export const Table = <T extends object>({
               className={onRowClick ? 'hover:bg-base-200 cursor-pointer' : ''}
             >
               {columns.map((column, colIndex) => (
-                <td key={`${rowIndex}-${colIndex}`}>
-                  {typeof column.accessor === 'function'
-                    ? column.accessor(item)
-                    : String(item[column.accessor] ?? '')}
-                </td>
+                <td key={colIndex}>{column.accessor(item)}</td>
               ))}
             </tr>
           ))}
@@ -68,4 +62,4 @@ export const Table = <T extends object>({
       </table>
     </div>
   );
-}; 
+} 
