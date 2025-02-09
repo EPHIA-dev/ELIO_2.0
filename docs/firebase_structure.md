@@ -2,12 +2,10 @@
 
 Ce document décrit la structure des collections et des documents dans notre base de données Firebase.
 
-_Document généré automatiquement le 08/02/2025 à 14:53_
 
 ## Vue d'ensemble
 
 La base de données contient les collections principales suivantes :
-
 - `conversations` : Gestion des conversations entre utilisateurs
 - `establishments` : Gestion des établissements de santé
 - `professions` : Gestion des professions médicales
@@ -160,4 +158,5 @@ flowchart TD
 5. **Sécurité et rôles**
    - Système de rôles utilisateur implémenté
    - Gestion des états actif/inactif pour les spécialités
+
 

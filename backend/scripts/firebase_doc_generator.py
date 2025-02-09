@@ -19,6 +19,7 @@ def detect_reference_type(value, all_collections):
     return None
 
 def analyze_document(doc, all_collections):
+
     """Analyser la structure d'un document"""
     try:
         structure = {}
@@ -74,12 +75,14 @@ def analyze_document(doc, all_collections):
                 
                 structure[key] = field_info
                 print(f"      ✅ Analyse du champ {key}: {field_info}")
+
         return structure
     except Exception as e:
         print(f"⚠️ Erreur lors de l'analyse du document: {str(e)}")
         return {}
 
 def analyze_collection(collection_ref, all_collections, processed_collections=None):
+
     """Analyser récursivement une collection"""
     try:
         if processed_collections is None:
@@ -103,6 +106,7 @@ def analyze_collection(collection_ref, all_collections, processed_collections=No
         start_time = time.time()
         try:
             docs = list(collection_ref.limit(10).stream())  # Augmenté à 10 pour plus de données
+
             print(f"   ✅ {len(docs)} documents récupérés en {time.time() - start_time:.2f} secondes")
         except Exception as e:
             print(f"   ⚠️ Erreur lors de la récupération des documents: {str(e)}")
@@ -216,6 +220,7 @@ def main():
         try:
             collections = list(db.collections())
             all_collections = collections  # Pour la détection des références
+
             print(f"📊 Nombre de collections trouvées: {len(collections)}")
         except Exception as e:
             print(f"❌ Erreur lors de la récupération des collections: {str(e)}")

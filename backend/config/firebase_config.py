@@ -6,6 +6,7 @@ import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 cred_path = os.path.join(current_dir, "firebase.json")
 
+
 try:
     # Vérifier si Firebase est déjà initialisé
     app = firebase_admin.get_app()
